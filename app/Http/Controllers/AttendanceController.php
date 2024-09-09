@@ -405,6 +405,10 @@ class AttendanceController extends Controller
         $lateStartTime = Carbon::createFromTime(8, 31);
         $lateEndTime = Carbon::createFromTime(8, 46);
         $halfDayTime = Carbon::createFromTime(12, 31);
+        $shortLeaveStartMorning = Carbon::createFromTime(8, 45);
+        $shortLeaveEndMorning = Carbon::createFromTime(10, 0);
+        $shortLeaveStartEvening = Carbon::createFromTime(15, 30);
+        $shortLeaveEndEvening = Carbon::createFromTime(17, 0);
         
         $date = Carbon::parse($attendance->date);
         $checkIn = Carbon::parse($attendance->check_in);
@@ -412,83 +416,60 @@ class AttendanceController extends Controller
         
         $currentMonth = $date->month;
         $currentYear = $date->year;
-
+    
+        // Get the count of short leaves taken by the employee in the current month
+        $shortLeaveCount = Attendance::where('employee_id', $attendance->employee_id)
+            ->where(function ($query) use ($shortLeaveStartMorning, $shortLeaveEndMorning, $shortLeaveStartEvening, $shortLeaveEndEvening) {
+                $query->whereBetween('check_in', [$shortLeaveStartMorning, $shortLeaveEndMorning])
+                      ->orWhereBetween('check_out', [$shortLeaveStartEvening, $shortLeaveEndEvening]);
+            })
+            ->whereMonth('date', $currentMonth)
+            ->whereYear('date', $currentYear)
+            ->count();
+    
+        $SHORT_LEAVE_QUOTA = 2;
+    
+        // If the employee is within the short leave time and hasn't exceeded the quota
+        if ($shortLeaveCount < $SHORT_LEAVE_QUOTA && 
+            ($checkIn->between($shortLeaveStartMorning, $shortLeaveEndMorning) || $checkOut->between($shortLeaveStartEvening, $shortLeaveEndEvening))) {
+            
+            // Record it as a short leave in the Leave table
+            $this->createLeave($attendance->employee_id, $attendance->date, 'Short Leave', 'Late Coming - Auto claimed short leave');
+            return; // Do not mark as late or half day
+        }
+    
         if ($checkIn->between($lateStartTime, $lateEndTime)) {
-            // Count late comings for the current month and year
             $lateCount = Attendance::where('employee_id', $attendance->employee_id)
                 ->whereTime('check_in', '>=', $lateStartTime->toTimeString())
                 ->whereTime('check_in', '<=', $lateEndTime->toTimeString())
                 ->whereMonth('date', $currentMonth)
                 ->whereYear('date', $currentYear)
                 ->count();
-
+    
             $NOOFLATECOMINGS = 30;
-            // Check for late comings exceeding the allowed limit
+    
             if ($lateCount >= $NOOFLATECOMINGS) {
-                $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day');
+                $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming');
             } else {
-                // Calculate the actual late minutes
                 $lateMinutes = $checkIn->diffInMinutes($officeStartTime);
                 $requiredCheckOutTime = Carbon::createFromTime(17, 0)->addMinutes($lateMinutes);
                 
-                // Check if the employee didn't cover the actual late minutes
                 if ($checkOut->lt($requiredCheckOutTime)) {
-                    $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day');
+                    $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming');
                 }
-            } 
+            }
         }
-
-        // Check if the employee comes between 8:46 AM to 12:31 PM
+    
         if ($checkIn->between($lateEndTime, $halfDayTime)) {
-            $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day');
+            $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming');
         }
-
-        // Check if the employee comes after 12:31 PM
+    
         if ($checkIn->gt($halfDayTime)) {
-            $this->createLeave($attendance->employee_id, $attendance->date, 'Casual Leave');
+            $this->createLeave($attendance->employee_id, $attendance->date, 'Casual Leave', 'Late Coming');
         }
     }
-
-
-
-
-
     
-    // private function createLeave($employeeId, $date, $type)
-    // {
-    //     // Fetch user using employee_id from Attendance table
-    //     $user = Attendance::join('users', 'users.emp_no', '=', 'attendances.employee_id')
-    //                         ->where('attendances.employee_id', $employeeId)
-    //                         ->select('users.id as user_id')
-    //                         ->first();
-    
-    //     if ($user) {
-    //         // Create a new Leave instance
-    //         $leave = new Leave();
-            
-    //         // Assign fetched user_id to the leave record
-    //         $leave->user_id = $user->user_id;
-    //         $leave->leave_type = $type;
-    //         $leave->start_date = $date;
-    //         $leave->end_date = $date;
-    //         $leave->reason = "Late Coming";
-    //         $leave->covering_person = 'latecoming';
-    //         $leave->supervisor_approval = 'Approved';
-    //         $leave->management_approval = 'Approved';
-    
-    //         // Save the leave record
-    //         $leave->save();
-    
-    //         // Log the creation of the leave record
-    //         Log::info("Created leave record for employee: {$user->user_id} on date: $date as $type leave");
-    //     } else {
-    //         Log::error("User not found for employee_id: $employeeId");
-    //     }
-    // }
-
-
-
-    private function createLeave($employeeId, $date, $type)
+    private function createLeave($employeeId, $date, $type, $reason)
     {
         // Fetch user using employee_id from Attendance table
         $user = Attendance::join('users', 'users.emp_no', '=', 'attendances.employee_id')
@@ -505,7 +486,7 @@ class AttendanceController extends Controller
             $leave->leave_type = $type;
             $leave->start_date = $date;
             $leave->end_date = $date;
-            $leave->reason = "Late Coming";
+            $leave->reason = $reason;
             $leave->covering_person = 'latecoming';
             $leave->supervisor_approval = 'Approved';
             $leave->management_approval = 'Approved';
@@ -514,11 +495,12 @@ class AttendanceController extends Controller
             $leave->save();
     
             // Log the creation of the leave record
-            Log::info("Created leave record for employee: {$user->user_id} on date: $date as $type leave");
+            Log::info("Created leave record for employee: {$user->user_id} on date: $date as $type leave with reason: $reason");
         } else {
-            Log::error("User not found for employee_id: $user->user_id");
+            Log::error("User not found for employee_id: {$employeeId}");
         }
     }
+    
     
     
 

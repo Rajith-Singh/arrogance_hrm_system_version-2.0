@@ -89,7 +89,7 @@
                 @php
                     $allocated = $data['Total Allocated'];
                     $taken = $data['Leaves Taken'];
-                    $allocatedPerMonth = $data['Allocated per month'];
+                    $allocatedPerMonth = $data['Allocated per month'] ?? 0;
                     $remaining = $allocated - $taken; // Default calculation for remaining leaves
 
                     // Specific calculation for 'Short Leave'

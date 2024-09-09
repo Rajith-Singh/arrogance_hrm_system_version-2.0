@@ -494,8 +494,7 @@ class LeaveController extends Controller
     }
     
 
-///////////////////////////////////////////////Leave Calculator///////////////////////////////////////////////////////////
-
+    /////////////////////////////////////////////////Leave Calculator///////////////////////////////////////////////////////////
 
     public function getRemainingLeaves(Request $request)
     {
@@ -511,14 +510,17 @@ class LeaveController extends Controller
         $leaveTypes = LeaveType::where('category', $userCategory)->get()->keyBy('leave_type');
         $yearStart = date('Y-01-01');
         $yearEnd = date('Y-12-31');
+        $monthStart = date('Y-m-01');
+        $monthEnd = date('Y-m-t');
 
         // Initialize remaining leaves data structure
         $remainingLeaves = [];
         foreach ($leaveTypes as $type => $info) {
+            // Handle missing 'count_per_month' by assigning a default value (e.g., null or 0)
             $remainingLeaves[$type] = [
                 'Leave Type' => $type,
                 'Total Allocated' => $info->count,
-                'Allocated per month' => $info->count_per_month,
+                'Allocated per month' => $info->count_per_month ?? 0, // Set default value if missing
                 'Leaves Taken' => 0,
                 'Remaining Leaves' => $info->count,
             ];
@@ -551,6 +553,15 @@ class LeaveController extends Controller
         // Each half day is considered as 0.5 days of casual leave
         $halfDayDeductions = $totalHalfDaysTaken * 0.5;
 
+        // Calculate the total short leaves taken for the current month
+        $shortLeavesTaken = Leave::where('user_id', $userId)
+            ->whereBetween('start_date', [$monthStart, $monthEnd])
+            ->whereBetween('end_date', [$monthStart, $monthEnd])
+            ->where('leave_type', 'Short Leave')
+            ->where('management_approval', 'Approved')
+            ->where('supervisor_approval', 'Approved')
+            ->count();
+
         foreach ($leavesTaken as $leave) {
             $type = $leave->leave_type;
             $daysTaken = $leave->days_taken;
@@ -569,10 +580,14 @@ class LeaveController extends Controller
             $remainingLeaves['Casual Leave']['Remaining Leaves'] = max(0, $remainingLeaves['Casual Leave']['Remaining Leaves'] - $halfDayDeductions);
         }
 
+        // Handle short leaves: Deduct the number of taken short leaves from the monthly quota
+        if (isset($remainingLeaves['Short Leave'])) {
+            $remainingLeaves['Short Leave']['Leaves Taken'] = $shortLeavesTaken;
+            $remainingLeaves['Short Leave']['Remaining Leaves'] = max(0, $remainingLeaves['Short Leave']['Allocated per month'] - $shortLeavesTaken);
+        }
+
         return $remainingLeaves;
     }
-
-    
 
     public function showRemainingLeaves()
     {
@@ -584,29 +599,24 @@ class LeaveController extends Controller
         } else {
             $remainingLeaves = $this->getRemainingLeaves(request());
         }
-    
+
         // Fetch all leaves to be displayed on the calendar
         $leaves = Leave::with('user')->get();  // Ensure this line is included to fetch leave data
-    
+
         return view('hr.home', [
             'remainingLeaves' => $remainingLeaves,
             'userCategory' => $userCategory,
             'leaves' => $leaves // Pass leaves data for calendar
         ]);
     }
-    
-
-
 
     public function getInternshipRemainingLeave(Request $request)
     {
         $userId = auth()->user()->id;
-        
-    
+
         // Define the current month's start and end dates
         $monthStart = date('Y-m-01');
         $monthEnd = date('Y-m-t');
-    
 
         // Fetch all approved half-day leaves for the user within the specified date range
         $halfDayLeaves = Leave::where('user_id', $userId)
@@ -636,13 +646,10 @@ class LeaveController extends Controller
             }
         }
 
-    
         // Interns are allowed 1 half-day leave per month
         $HALFDAYLIMIT = 1;
-
         $halfDayLimit = $HALFDAYLIMIT;
-        // dd($halfDaysTaken);
-    
+
         if ($totalHalfDays > $halfDayLimit) {
             // If the limit is exceeded, return "No Pay" for the month
             return [
@@ -662,11 +669,9 @@ class LeaveController extends Controller
         }
     }
 
-
     public function showLeaveEntitlement()
     {
         $leaveEntitlement = $this->calculateLeaveEntitlement();
-
 
         $remainingLeavesView = View::make('components.user-dashboard', ['leaveEntitlement' => $leaveEntitlement])->render();
 
@@ -682,25 +687,30 @@ class LeaveController extends Controller
         $casualLeaveTotal = 7;
         $casualLeavesTaken = 0;
         $halfDaysTaken = 0;
-    
-        // Initialize entitlements and find the index and total of casual leaves
+        $shortLeavesTaken = 0;
+
+        // Initialize entitlements and find the index and total of casual and short leaves
         foreach ($leaveTypes as $index => $leaveType) {
             $leavesTaken = $this->getLeavesTaken($leaveType->leave_type);
             $leaveEntitlement[$index] = [
                 'leave_type' => $leaveType->leave_type,
                 'total_allocated' => $leaveType->count,
-                'allocated_per_month' => null,
+                'allocated_per_month' => $leaveType->count_per_month,
                 'leaves_taken' => $leavesTaken,
                 'remaining_leaves' => $leaveType->count - $leavesTaken
             ];
-    
+
             if ($leaveType->leave_type === 'Casual Leave') {
                 $casualLeaveIndex = $index;
                 $casualLeaveTotal = $leaveType->count;
                 $casualLeavesTaken += $leavesTaken;
             }
+
+            if ($leaveType->leave_type === 'Short Leave') {
+                $shortLeavesTaken += $leavesTaken;
+            }
         }
-    
+
         // Apply deductions for Half Day
         foreach ($leaveTypes as $index => $leaveType) {
             if ($leaveType->leave_type === 'Half Day' &&
@@ -710,12 +720,12 @@ class LeaveController extends Controller
                 $casualLeavesTaken += $halfDaysTaken * 0.5;
             }
         }
-    
+
         // Update casual leaves remaining
         if ($casualLeaveIndex !== null) {
             $leaveEntitlement[$casualLeaveIndex]['remaining_leaves'] = $casualLeaveTotal - $casualLeavesTaken;
         }
-    
+
         // For 'Internship' category, consider only one half day per month
         if ($userCategory === 'Internship') {
             $leaveEntitlement[] = [
@@ -724,6 +734,17 @@ class LeaveController extends Controller
                 'allocated_per_month' => null, // No monthly allocation for Internship
                 'leaves_taken' => $this->getLeavesTaken('Half Day'),
                 'remaining_leaves' => null, // Remaining leaves are not applicable for Internship
+            ];
+        }
+
+        // Handle Short Leave Quota reset for every month
+        if ($userCategory !== 'Internship') {
+            $leaveEntitlement[] = [
+                'leave_type' => 'Short Leave',
+                'total_allocated' => $leaveTypes->where('leave_type', 'Short Leave')->first()->count_per_month,
+                'allocated_per_month' => $leaveTypes->where('leave_type', 'Short Leave')->first()->count_per_month,
+                'leaves_taken' => $shortLeavesTaken,
+                'remaining_leaves' => $leaveTypes->where('leave_type', 'Short Leave')->first()->count_per_month - $shortLeavesTaken,
             ];
         }
 
@@ -738,9 +759,8 @@ class LeaveController extends Controller
                     ->count();
     }
 
+    /////////////////////////////////////////////////End Leave Calculator////////////////////////////////////////////////////
 
-
-/////////////////////////////////////////////////End Leave Calculator////////////////////////////////////////////////////
 
     
 
