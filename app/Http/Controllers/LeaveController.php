@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\Leave;
 use App\Models\User;
 use App\Models\LeaveType;
+use App\Models\LeaveDeletionRequest;
 use Illuminate\Support\Facades\View; // Import the View facade
 use Illuminate\Support\Facades\DB; 
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,7 @@ use App\Mail\LeaveRequestMail;
 use App\Mail\ManagementApprovalMail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+
 
 
 
@@ -31,9 +33,13 @@ class LeaveController extends Controller
         $request->validate([
             'leave_type' => 'required',
             'other_leave_type' => 'nullable|required_if:leave_type,Other', // Add validation for other_leave_type
-            'start_date' => 'required',
-            'end_date' => 'required',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
             'reason' => 'required',
+            // Validate the selected time slots based on leave type
+            'short_leave_time' => 'nullable|required_if:leave_type,Short Leave',
+            'half_day_time' => 'nullable|required_if:leave_type,Half Day',
+            'duty_leave_time' => 'nullable|required_if:leave_type,Duty Leave',
         ]);
     
         $leave = new Leave;
@@ -41,20 +47,37 @@ class LeaveController extends Controller
         $leave->user_id = auth()->user()->id;
         $user_name = auth()->user()->name;
     
-        // Check if 'Other' was selected and use 'other_leave_type' if so
-        if ($request->leave_type === 'Other') {
-            $leave->leave_type = $request->other_leave_type;
-        } else {
-            $leave->leave_type = $request->leave_type;
-        }
+        // Determine the correct leave type to store
+        $leave->leave_type = $request->leave_type === 'Other' ? $request->other_leave_type : $request->leave_type;
     
+        // Set start and end date
         $leave->start_date = $request->start_date;
         $leave->end_date = $request->end_date;
+    
+        // Handle time slots based on leave type
+        if ($request->leave_type === 'Short Leave') {
+            $timeRange = explode(' - ', $request->short_leave_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Half Day') {
+            $timeRange = explode(' - ', $request->half_day_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Duty Leave') {
+            $timeRange = explode(' - ', $request->duty_leave_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } else {
+            // For other leave types, set times to null
+            $leave->start_time = null;
+            $leave->end_time = null;
+        }
+    
         $leave->reason = $request->reason;
         $leave->additional_notes = $request->additional_notes;
         $leave->covering_person = $request->covering_person;
     
-        // Set supervisor_approval and management_approval to "Approved" for Short Leave requests
+        // Set supervisor_approval and management_approval
         if ($leave->leave_type === 'Short Leave') {
             $leave->supervisor_approval = "Approved";
             $leave->management_approval = "Approved";
@@ -80,13 +103,16 @@ class LeaveController extends Controller
                 'leave_id' => $leave->id, // Add leave_id
                 'emp_id' => auth()->user()->id, // Add emp_id
             ]);
-
+    
             // Send email to the supervisor
             Mail::to($supervisor->email)->send(new LeaveRequestMail($leave));
         }
     
         return back()->with('msg', 'Your leave request has been successfully processed.');
     }
+    
+    
+    
 
 
 
@@ -126,23 +152,49 @@ class LeaveController extends Controller
         $request->validate([
             'leave_type' => 'required',
             'other_leave_type' => 'nullable|required_if:leave_type,Other', // Validation for other_leave_type
-            'start_date' => 'required',
-            'end_date' => 'required',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
             'reason' => 'required',
             'covering_person' => 'required',
+            // Time validation based on leave type
+            'short_leave_time' => 'nullable|required_if:leave_type,Short Leave',
+            'half_day_time' => 'nullable|required_if:leave_type,Half Day',
+            'duty_leave_time' => 'nullable|required_if:leave_type,Duty Leave',
         ]);
     
         // Determine the correct leave type to store
         $leaveType = $request->leave_type === 'Other' ? $request->other_leave_type : $request->leave_type;
     
+        // Handle time slots for Short Leave, Half Day, and Duty Leave
+        if ($request->leave_type === 'Short Leave') {
+            $timeRange = explode(' - ', $request->short_leave_time);
+            $start_time = date('H:i:s', strtotime($timeRange[0]));
+            $end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Half Day') {
+            $timeRange = explode(' - ', $request->half_day_time);
+            $start_time = date('H:i:s', strtotime($timeRange[0]));
+            $end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Duty Leave') {
+            $timeRange = explode(' - ', $request->duty_leave_time);
+            $start_time = date('H:i:s', strtotime($timeRange[0]));
+            $end_time = date('H:i:s', strtotime($timeRange[1]));
+        } else {
+            // Set time to null for other leave types
+            $start_time = null;
+            $end_time = null;
+        }
+    
         // Update the leave record
         DB::table('leaves')->where('id', $request->id)->update([
             'leave_type' => $leaveType,
+            'other_leave_type' => $request->leave_type === 'Other' ? $request->other_leave_type : null,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'reason' => $request->reason,
             'additional_notes' => $request->additional_notes,
             'covering_person' => $request->covering_person,
+            'start_time' => $start_time,
+            'end_time' => $end_time,
         ]);
     
         // Redirect based on user type
@@ -156,6 +208,8 @@ class LeaveController extends Controller
             return redirect()->to('/manage-leave')->with('message', 'Leave successfully updated!');
         }
     }
+    
+    
 
     public function deleteLeave($id){
         DB::table('leaves')->where('id',$id)->delete();
@@ -810,41 +864,64 @@ class LeaveController extends Controller
         $request->validate([
             'leave_type' => 'required',
             'other_leave_type' => 'nullable|required_if:leave_type,Other', // Add validation for other_leave_type
-            'start_date' => 'required',
-            'end_date' => 'required',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
             'reason' => 'required',
-            'covering_person' => 'required'
+            'covering_person' => 'required',
+            // Validate the selected time slots based on leave type
+            'short_leave_time' => 'nullable|required_if:leave_type,Short Leave',
+            'half_day_time' => 'nullable|required_if:leave_type,Half Day',
+            'duty_leave_time' => 'nullable|required_if:leave_type,Duty Leave',
         ]);
     
         $leave = new Leave;
     
         $leave->user_id = auth()->user()->id;
     
-        // Check if 'Other' was selected and use 'other_leave_type' if so
-        if ($request->leave_type === 'Other') {
-            $leave->leave_type = $request->other_leave_type;
-        } else {
-            $leave->leave_type = $request->leave_type;
-        }
+        // Determine the correct leave type to store
+        $leave->leave_type = $request->leave_type === 'Other' ? $request->other_leave_type : $request->leave_type;
     
+        // Set start and end date
         $leave->start_date = $request->start_date;
         $leave->end_date = $request->end_date;
+    
+        // Handle time slots based on leave type
+        if ($request->leave_type === 'Short Leave') {
+            $timeRange = explode(' - ', $request->short_leave_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Half Day') {
+            $timeRange = explode(' - ', $request->half_day_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Duty Leave') {
+            $timeRange = explode(' - ', $request->duty_leave_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } else {
+            // For other leave types, set times to null
+            $leave->start_time = null;
+            $leave->end_time = null;
+        }
+    
+        // Set other fields
         $leave->reason = $request->reason;
         $leave->additional_notes = $request->additional_notes;
         $leave->covering_person = $request->covering_person;
         $leave->supervisor_approval = "Approved";
         $leave->management_approval = "Pending";
     
+        // Save the leave request
         $leave->save();
-
+    
         // Get the leave_id of the newly created leave request
         $leave_id = $leave->id;
-
+    
+        // Notify all management users
         $management_users = User::where('usertype', 'management')->get();
         $user = User::find($leave->user_id);
-        // dd($leave->user_id,);
+    
         foreach ($management_users as $manager) {
-            
             $management_message = "New leave request from $user->name requires your approval.";
             Notification::create([
                 'user_id' => $manager->id,
@@ -852,17 +929,21 @@ class LeaveController extends Controller
                 'leave_id' => $leave_id, // Use the correct leave_id here
                 'emp_id' => $leave->user_id, // Use the correct user_id here
             ]);
-
+    
             $data = [
                 'user_id' => $manager->id,
                 'message' => $management_message,
                 'leave_id' => $leave_id, // Use the correct leave_id here
                 'emp_id' => $leave->user_id, // Use the correct user_id here
             ];
+            
+            // Optionally, you can send an email to the manager (if needed)
+            // Mail::to($manager->email)->send(new LeaveRequestMail($leave));
         }
     
         return back()->with('msg', 'Your leave request has been successfully processed.');
     }
+    
 
     public function viewSupLeaves(Request $request) {
         // $leaves = Leave::where('user_id', auth()->user()->id)->get();  Fetch leaves for the authenticated user
@@ -1157,7 +1238,71 @@ class LeaveController extends Controller
                     ->get();
     }
 
+    public function deleteWithReason(Request $request, $leaveId)
+    {
+        // Log the incoming request data
+        Log::info('Delete request received:', $request->all());
+    
+        // Validate the incoming request
+        $request->validate([
+            'reason' => 'required|string',
+            'attachment' => 'nullable|file|mimes:jpg,png,pdf,docx|max:2048',
+        ]);
+    
+        // Fetch the leave by ID
+        $leave = Leave::find($leaveId);
 
+        if (!$leave) {
+            Log::error('Leave not found for ID: ' . $leaveId);
+            return response()->json(['success' => false, 'message' => 'Leave not found.'], 404);
+        }
+    
+        // Attempt to delete the leave from the leaves table first
+        try {
+            // Permanently delete the leave record from the leaves table
+            $leave->delete(); // Or $leave->forceDelete() if soft deletes are enabled
+    
+            // Handle the attachment if present
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $attachmentPath = $request->file('attachment')->store('attachments');
+                Log::info('Attachment path: ' . $attachmentPath);
+            }
+    
+            // Create and save the leave deletion request
+            $deletionRequest = new LeaveDeletionRequest();
+            $deletionRequest->leave_id = $leaveId; // Use the already deleted leave's ID
+            $deletionRequest->emp_id = $leave->user_id;
+            $deletionRequest->reason = $request->input('reason');
+            $deletionRequest->start_date = $leave->start_date;
+            $deletionRequest->end_date = $leave->end_date;
+            $deletionRequest->attachment = $attachmentPath;
+    
+            // Log the data being saved to the database
+            Log::info('Saving Leave Deletion Request:', [
+                'leave_id' => $leaveId,
+                'reason' => $request->input('reason'),
+                'attachment' => $attachmentPath,
+            ]);
+    
+            $deletionRequest->save();
+    
+            return response()->json(['success' => true, 'message' => 'Leave deletion request submitted and leave deleted successfully.']);
+        } catch (\Exception $e) {
+            // Log any exceptions for debugging
+            Log::error('Error saving leave deletion request: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Error occurred during deletion request.'], 500);
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
 
 

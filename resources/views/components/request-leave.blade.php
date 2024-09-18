@@ -23,13 +23,7 @@
     @livewireStyles
 </head>
 <body class="font-sans antialiased">
-
-
     <div class="min-h-screen bg-gray-100">
-
-
-
-
         <!-- Page Content -->
         <main>
             <div class="p-6 lg:p-8 bg-white border-b border-gray-200">
@@ -64,6 +58,8 @@
                                                 <option value="Half Day">Half Day</option>
                                                 <option value="Short Leave">Short Leave</option>
                                                 <option value="Duty Leave">Duty Leave</option>
+                                                <option value="Election Leave - Half Day">Election Leave - Half Day</option>
+                                                <option value="Election Leave - Full Day">Election Leave - Full Day</option>
                                             @else
                                                 <!-- Common leave options available to all users -->
                                                 <option value="Casual Leave">Casual Leave</option>
@@ -76,9 +72,44 @@
                                                 <option value="Short Leave">Short Leave</option>
                                                 <option value="Duty Leave">Duty Leave</option>
                                                 <option value="Study/Training Leave">Study/Training Leave</option>
+                                                <option value="Election Leave - Half Day">Election Leave - Half Day</option>
+                                                <option value="Election Leave - Full Day">Election Leave - Full Day</option>
                                                 <option value="Other">Other</option>
                                             @endif
                                         </select>
+                                    </div>
+
+                                    <!-- Time selection slots -->
+                                    <div class="mt-4" id="timeSelection" style="display: none;">
+                                        <!-- Time selection for Short Leave -->
+                                        <div id="shortLeaveTime" style="display: none;">
+                                            <x-label for="short_leave_time" value="{{ __('Select Time Slot') }}" />
+                                            <select id="short_leave_time" name="short_leave_time" class="block mt-1 w-full">
+                                                <option value="" disabled selected>Select Time Slot</option>
+                                                <option value="8:45 AM - 10:00 AM">8:45 AM - 10:00 AM</option>
+                                                <option value="3:30 PM - 5:00 PM">3:30 PM - 5:00 PM</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Time selection for Half Day -->
+                                        <div id="halfDayTime" style="display: none;">
+                                            <x-label for="half_day_time" value="{{ __('Select Time Slot') }}" />
+                                            <select id="half_day_time" name="half_day_time" class="block mt-1 w-full">
+                                                <option value="" disabled selected>Select Time Slot</option>
+                                                <option value="8:30 AM - 12:30 PM">8:30 AM - 12:30 PM</option>
+                                                <option value="12:30 PM - 5:00 PM">12:30 PM - 5:00 PM</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Time selection for Duty Leave -->
+                                        <div id="dutyLeaveTime" style="display: none;">
+                                            <x-label for="duty_leave_time" value="{{ __('Select Time Slot') }}" />
+                                            <select id="duty_leave_time" name="duty_leave_time" class="block mt-1 w-full">
+                                                <option value="" disabled selected>Select Time Slot</option>
+                                                <option value="8:30 AM - 12:30 PM">8:30 AM - 12:30 PM</option>
+                                                <option value="8:30 AM - 5:00 PM">8:30 AM - 5:00 PM</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <div class="mt-4" id="otherLeaveType" style="display: none;">
@@ -137,10 +168,35 @@
     <script>
         document.getElementById('leave_type_select').addEventListener('change', function() {
             var selectedValue = this.value;
+            var timeSelection = document.getElementById('timeSelection');
+            var shortLeaveTime = document.getElementById('shortLeaveTime');
+            var halfDayTime = document.getElementById('halfDayTime');
+            var dutyLeaveTime = document.getElementById('dutyLeaveTime');
+            var otherLeaveType = document.getElementById('otherLeaveType');
+
+            // Hide all time selection elements initially
+            shortLeaveTime.style.display = 'none';
+            halfDayTime.style.display = 'none';
+            dutyLeaveTime.style.display = 'none';
+
             if (selectedValue === 'Other') {
-                document.getElementById('otherLeaveType').style.display = 'block';
+                otherLeaveType.style.display = 'block';
+                timeSelection.style.display = 'none';
+            } else if (selectedValue === 'Short Leave') {
+                timeSelection.style.display = 'block';
+                shortLeaveTime.style.display = 'block';
+                otherLeaveType.style.display = 'none';
+            } else if (selectedValue === 'Half Day') {
+                timeSelection.style.display = 'block';
+                halfDayTime.style.display = 'block';
+                otherLeaveType.style.display = 'none';
+            } else if (selectedValue === 'Duty Leave') {
+                timeSelection.style.display = 'block';
+                dutyLeaveTime.style.display = 'block';
+                otherLeaveType.style.display = 'none';
             } else {
-                document.getElementById('otherLeaveType').style.display = 'none';
+                timeSelection.style.display = 'none';
+                otherLeaveType.style.display = 'none';
             }
         });
 

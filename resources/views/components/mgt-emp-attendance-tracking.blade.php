@@ -1,9 +1,6 @@
 <div class="p-6 lg:p-8 bg-white border-b border-gray-200">
     <x-application-logo class="block h-12 w-auto" />
-
-    <h1 class="mt-8 text-2xl font-medium text-gray-900">
-        View Attendance
-    </h1>
+    <h1 class="mt-8 text-2xl font-medium text-gray-900">View Attendance</h1>
 </div>
 
 <div class="py-6">
@@ -12,13 +9,18 @@
             <div class="p-6">
                 <x-validation-errors class="mb-4" />
 
-                <!-- Date and Employee ID Filter Form -->
+                <!-- Date and Employee ID/Name Filter Form -->
                 <form id="filter-form" class="mb-6">
                     <div class="flex items-center justify-between">
-                        <div class="flex-1 mr-4">
-                            <label for="employee_id" class="block text-sm font-medium text-gray-700">Employee ID</label>
-                            <input type="text" id="employee_id" name="employee_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <!-- Employee ID / Name Autocomplete -->
+                        <div class="flex-1 mr-4 relative">
+                            <label for="employee_search" class="block text-sm font-medium text-gray-700">Employee Name or ID</label>
+                            <input type="text" id="employee_search" name="employee_search" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter Employee ID or Name">
+
+                            <!-- Autocomplete Suggestions Dropdown -->
+                            <ul id="employee_suggestions" class="absolute z-10 w-full bg-white shadow-lg rounded-md mt-1 hidden"></ul>
                         </div>
+                        
                         <div class="flex-1 mr-4">
                             <label for="start_date" class="block text-sm font-medium text-gray-700">Start Date</label>
                             <input type="date" id="start_date" name="start_date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
@@ -46,10 +48,46 @@
 </div>
 
 <script>
+    document.getElementById('employee_search').addEventListener('input', function () {
+        const query = this.value;
+
+        if (query.length >= 2) { // Start searching after 2 characters
+            fetch(`/employee-search?query=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    const suggestions = document.getElementById('employee_suggestions');
+                    suggestions.innerHTML = '';
+                    suggestions.classList.remove('hidden');
+
+                    if (data.length > 0) {
+                        data.forEach(item => {
+                            const suggestionItem = document.createElement('li');
+                            suggestionItem.className = 'p-2 hover:bg-indigo-600 hover:text-white cursor-pointer';
+                            suggestionItem.textContent = `${item.name} (${item.emp_no})`;
+                            suggestionItem.onclick = function () {
+                                document.getElementById('employee_search').value = item.name; // Fill in Employee Name
+                                suggestions.classList.add('hidden'); // Hide suggestions after selecting
+                            };
+                            suggestions.appendChild(suggestionItem);
+                        });
+                    } else {
+                        const noResultItem = document.createElement('li');
+                        noResultItem.className = 'p-2 text-gray-500';
+                        noResultItem.textContent = 'No matching results';
+                        suggestions.appendChild(noResultItem);
+                    }
+                })
+                .catch(error => console.error('Error fetching suggestions:', error));
+        } else {
+            document.getElementById('employee_suggestions').classList.add('hidden');
+        }
+    });
+
+    // Handle form submission for filtering attendance records
     document.getElementById('filter-form').addEventListener('submit', function (e) {
         e.preventDefault();
 
-        const employeeId = document.getElementById('employee_id').value;
+        const employeeId = document.getElementById('employee_search').value;
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
 
@@ -81,12 +119,8 @@
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td class="px-6 py-4 whitespace-nowrap">${record.date}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                ${record.real_check_in}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                ${record.real_check_out}
-                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">${record.real_check_in}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${record.real_check_out}</td>
                             <td class="px-6 py-4 whitespace-nowrap">${record.verify_code}</td>
                         `;
                         tbody.appendChild(row);

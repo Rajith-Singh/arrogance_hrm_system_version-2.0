@@ -78,6 +78,14 @@ Route::post('/notifications/mark-all-as-read', [NotificationController::class, '
 
 
 
+Route::post('/leaves/{leaveId}/delete-with-reason', [LeaveController::class, 'deleteWithReason'])->name('leaves.deleteWithReason');
+
+
+
+
+
+
+
 
 
 
@@ -154,6 +162,8 @@ Route::middleware(['role:management'])->group(function () {
         return view('management.view-emp-attendance');
     });
 
+    Route::get('/employee-search', [UserController::class, 'searchEmployees']);
+
     Route::get('/emp-attendance-tracking-mgt', [AttendanceController::class, 'checkEmpAttendanceMgt']);
 
     Route::post('/notifications/management/approve/{id}', [NotificationController::class, 'managementApprove'])->name('notifications.management.approve');
@@ -164,6 +174,9 @@ Route::middleware(['role:management'])->group(function () {
     });
     
     Route::get('/emp-daily-attendance-tracking', [AttendanceController::class, 'getAttendanceRecords']);
+
+    Route::get('/employee-search', [AttendanceController::class, 'searchEmployees']);
+
 
 
 
@@ -182,6 +195,10 @@ Route::middleware(['role:hr'])->group(function () {
 
     Route::get('/add-attendance', function () {
         return view('hr.add-attendance');
+    });
+
+    Route::get('/add-attendance-alternative', function () {
+        return view('hr.add-attendance-alternative');
     });
 
     Route::post('/upload-attendance', [AttendanceController::class, 'uploadAttendance']);
@@ -237,6 +254,8 @@ Route::middleware(['role:hr'])->group(function () {
     Route::get('/request-hr-leave', [LeaveController::class, 'getHruser']);
 
     Route::post('/saveHrLeave',[LeaveController::class,'storeHrLeave']);
+
+
 
 });
 

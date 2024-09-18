@@ -89,30 +89,44 @@
                 </tbody>
             </table>
         @elseif (auth()->user()->category == 'permanent')
-            <table class="table table-responsive-sm table-hover">
-                <thead class="thead-dark">
-                    <tr>
-                        <th>Leave Type</th>
-                        <th>Total Allocated</th>
-                        <th>Allocated per month</th>
-                        <th>Leaves Taken</th>
-                        <th>Remaining Leaves</th>
+        <table class="table table-responsive-sm table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Leave Type</th>
+                    <th>Total Allocated</th>
+                    <th>Allocated per month</th>
+                    <th>Leaves Taken</th>
+                    <th>Remaining Leaves</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($remainingLeaves as $type => $data)
+                    @php
+                        $allocated = $data['Total Allocated'];
+                        $taken = $data['Leaves Taken'];
+                        $remaining = $data['Remaining Leaves'];
+                        $exceededQuota = $allocated <= $taken;
+                        $leaveTypeClass = '';
+
+                        // Set color based on leave type and quota
+                        if (in_array($type, ['Annual Leave', 'Casual Leave', 'Medical Leave', 'Short Leave'])) {
+                            $leaveTypeClass = $exceededQuota ? 'text-red-600 font-bold' : 'text-blue-600 font-bold';
+                        }
+                        // Check for black-leave types and apply styles
+                        elseif (in_array($type, ['Half Day', 'Duty Leave', 'Maternity/Paternity Leave', 'No Pay Leave', 'Paternity Leave', 'Study/Training Leave'])) {
+                            $leaveTypeClass = 'text-black font-bold';
+                        }  
+                        else {
+                            $leaveTypeClass = $exceededQuota ? 'text-red-600 font-bold' : 'text-black font-bold';
+                        }
+                    @endphp
+                    <tr class="{{ $leaveTypeClass }}">
+                        <td>{{ $type }}</td>
+                        <td>{{ $allocated }}</td>
+                        <td>{{ $data['Allocated per month'] }}</td>
+                        <td>{{ $taken }}</td>
+                        <td>{{ $remaining }}</td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach ($remainingLeaves as $type => $data)
-                        @php
-                            $allocated = $data['Total Allocated'];
-                            $taken = $data['Leaves Taken'];
-                            $rowClass = $allocated <= $taken ? 'text-danger' : '';
-                        @endphp
-                        <tr class="{{ $rowClass }}">
-                            <td>{{ $type }}</td>
-                            <td>{{ $allocated }}</td>
-                            <td>{{ $data['Allocated per month'] }}</td>
-                            <td>{{ $taken }}</td>
-                            <td>{{ $data['Remaining Leaves'] }}</td>
-                        </tr>
                     @endforeach
                 </tbody>
             </table>

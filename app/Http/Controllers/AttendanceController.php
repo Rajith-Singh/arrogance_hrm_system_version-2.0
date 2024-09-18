@@ -401,43 +401,68 @@ class AttendanceController extends Controller
 
     private function handleLateComings($attendance)
     {
+        // Define times
         $officeStartTime = Carbon::createFromTime(8, 30);
         $lateStartTime = Carbon::createFromTime(8, 31);
         $lateEndTime = Carbon::createFromTime(8, 46);
-        $halfDayTime = Carbon::createFromTime(12, 31);
+        $halfDayTime = Carbon::createFromTime(12, 30);
+        $morningCutoffTime = Carbon::createFromTime(10, 0); // After 10:00 AM, apply half-day rules
         $shortLeaveStartMorning = Carbon::createFromTime(8, 45);
         $shortLeaveEndMorning = Carbon::createFromTime(10, 0);
         $shortLeaveStartEvening = Carbon::createFromTime(15, 30);
         $shortLeaveEndEvening = Carbon::createFromTime(17, 0);
-        
+        $officeEndTime = Carbon::createFromTime(17, 0); // End of the office day (5:00 PM)
+    
+        // Parse the attendance data
         $date = Carbon::parse($attendance->date);
         $checkIn = Carbon::parse($attendance->check_in);
         $checkOut = Carbon::parse($attendance->check_out);
         
+        // Get the current month and year for filtering
         $currentMonth = $date->month;
         $currentYear = $date->year;
     
-        // Get the count of short leaves taken by the employee in the current month
-        $shortLeaveCount = Attendance::where('employee_id', $attendance->employee_id)
-            ->where(function ($query) use ($shortLeaveStartMorning, $shortLeaveEndMorning, $shortLeaveStartEvening, $shortLeaveEndEvening) {
-                $query->whereBetween('check_in', [$shortLeaveStartMorning, $shortLeaveEndMorning])
-                      ->orWhereBetween('check_out', [$shortLeaveStartEvening, $shortLeaveEndEvening]);
-            })
-            ->whereMonth('date', $currentMonth)
-            ->whereYear('date', $currentYear)
-            ->count();
-    
+        // Define the short leave quota (2 short leaves per employee per month)
         $SHORT_LEAVE_QUOTA = 2;
     
-        // If the employee is within the short leave time and hasn't exceeded the quota
-        if ($shortLeaveCount < $SHORT_LEAVE_QUOTA && 
-            ($checkIn->between($shortLeaveStartMorning, $shortLeaveEndMorning) || $checkOut->between($shortLeaveStartEvening, $shortLeaveEndEvening))) {
-            
-            // Record it as a short leave in the Leave table
-            $this->createLeave($attendance->employee_id, $attendance->date, 'Short Leave', 'Late Coming - Auto claimed short leave');
-            return; // Do not mark as late or half day
+        // Track the number of short leaves taken by the employee in the current month
+        $shortLeaveCount = Leave::where('user_id', $attendance->employee_id)
+            ->where('leave_type', 'Short Leave')    // Only count short leaves
+            ->whereMonth('start_date', $currentMonth) // Consider only leaves in the current month
+            ->whereYear('start_date', $currentYear)   // And within the current year
+            ->count();
+    
+        // Case 1: If the employee checks in at or before 8:45 AM and checks out at or after 5:00 PM, no leave should be recorded
+        if ($checkIn->lte($shortLeaveStartMorning) && $checkOut->gte($officeEndTime)) {
+            // The employee covered the full workday, no leave should be applied.
+            return;
         }
     
+        // If they check in after 12:30 PM, it's a full Casual Leave
+        if ($checkIn->gt($halfDayTime)) {
+            $this->createLeave($attendance->employee_id, $attendance->date, 'Casual Leave', 'Late Coming - After Half Day cutoff');
+            return;
+        }
+    
+        // If they check in after 10:00 AM but before 12:30 PM, mark it as Half Day
+        if ($checkIn->between($morningCutoffTime, $halfDayTime)) {
+            $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming - After 10:00 AM');
+            return;
+        }
+    
+        // Check if the employee is within the short leave time window and has not exceeded the quota
+        if ($checkIn->between($shortLeaveStartMorning, $shortLeaveEndMorning) || $checkOut->between($shortLeaveStartEvening, $shortLeaveEndEvening)) {
+            if ($shortLeaveCount < $SHORT_LEAVE_QUOTA) {
+                // Record it as a short leave since the quota is not exceeded
+                $this->createLeave($attendance->employee_id, $attendance->date, 'Short Leave', 'Late Coming - Auto claimed short leave');
+            } else {
+                // If quota is exceeded, mark it as Half Day
+                $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming - Exceeded Short Leave Quota');
+            }
+            return; // Exit early to prevent further penalty
+        }
+    
+        // Existing late coming logic for those who are late but within grace period
         if ($checkIn->between($lateStartTime, $lateEndTime)) {
             $lateCount = Attendance::where('employee_id', $attendance->employee_id)
                 ->whereTime('check_in', '>=', $lateStartTime->toTimeString())
@@ -446,26 +471,25 @@ class AttendanceController extends Controller
                 ->whereYear('date', $currentYear)
                 ->count();
     
-            $NOOFLATECOMINGS = 30;
+            $NOOFLATECOMINGS = 30; // The limit of late comings
     
+            // If the employee has too many late comings, mark as Half Day
             if ($lateCount >= $NOOFLATECOMINGS) {
                 $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming');
             } else {
+                // Check if they checked out early based on their late minutes
                 $lateMinutes = $checkIn->diffInMinutes($officeStartTime);
                 $requiredCheckOutTime = Carbon::createFromTime(17, 0)->addMinutes($lateMinutes);
-                
+    
                 if ($checkOut->lt($requiredCheckOutTime)) {
-                    $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming');
+                    $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming - Early Check-out');
                 }
             }
         }
     
+        // If they are very late (after 8:46 AM but before 12:30 PM)
         if ($checkIn->between($lateEndTime, $halfDayTime)) {
-            $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming');
-        }
-    
-        if ($checkIn->gt($halfDayTime)) {
-            $this->createLeave($attendance->employee_id, $attendance->date, 'Casual Leave', 'Late Coming');
+            $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming - Late but before Half Day cutoff');
         }
     }
     
@@ -500,6 +524,8 @@ class AttendanceController extends Controller
             Log::error("User not found for employee_id: {$employeeId}");
         }
     }
+    
+    
     
     
     
@@ -576,24 +602,101 @@ class AttendanceController extends Controller
 
     public function checkEmpAttendanceMgt(Request $request)
     {
-        $employeeId = $request->query('employee_id');
+        $employeeIdOrName = $request->query('employee_id'); // This can be employee_id or part of the name
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
-
-        $query = Attendance::where('employee_id', $employeeId);
-
+    
+        // Join 'attendances' with 'users' on 'attendances.employee_id' == 'users.emp_no'
+        $query = Attendance::join('users', 'attendances.employee_id', '=', 'users.emp_no')
+                           ->select('attendances.*', 'users.name'); // Include name in the select for response
+    
+        // Filter by employee_id or name (partial matches allowed)
+        if ($employeeIdOrName) {
+            $query->where(function ($subquery) use ($employeeIdOrName) {
+                $subquery->where('users.emp_no', 'LIKE', '%' . $employeeIdOrName . '%') // Searching by employee_id (emp_no)
+                         ->orWhere('users.name', 'LIKE', '%' . $employeeIdOrName . '%'); // Searching by name
+            });
+        }
+    
+        // Filter by start date if provided
         if ($startDate) {
-            $query->where('date', '>=', $startDate);
+            $query->where('attendances.date', '>=', $startDate);
         }
-
+    
+        // Filter by end date if provided
         if ($endDate) {
-            $query->where('date', '<=', $endDate);
+            $query->where('attendances.date', '<=', $endDate);
         }
-
+    
+        // Execute the query and fetch the attendance records
         $attendanceRecords = $query->get();
-
+    
         return response()->json($attendanceRecords);
     }
+
+
+    public function searchEmployees(Request $request)
+    {
+        $query = $request->query('query'); // Get the search input
+
+        // Search employees by name (partial matches)
+        $employees = User::where('name', 'LIKE', '%' . $query . '%') // Matching the query with the name
+                        ->limit(10) // Limit results for performance
+                        ->get(['name', 'emp_no']); // Return name and emp_no
+
+        return response()->json($employees); // Return results as JSON
+    }
+
+    
+
+    // public function checkEmpAttendanceMgt(Request $request)
+    // {
+    //     $employeeIdOrName = $request->query('employee_id'); // This can be employee_id or part of the name
+    //     $startDate = $request->query('start_date');
+    //     $endDate = $request->query('end_date');
+
+    //     // Initialize query to join 'users' and 'attendance' tables
+    //     $query = Attendance::join('users', 'attendance.employee_id', '=', 'users.employee_id')
+    //                     ->select('attendance.*', 'users.name'); // Include name in the select for response
+
+    //     // Filter by employee_id or name (partial matches allowed)
+    //     if ($employeeIdOrName) {
+    //         $query->where(function ($subquery) use ($employeeIdOrName) {
+    //             $subquery->where('users.employee_id', 'LIKE', '%' . $employeeIdOrName . '%')
+    //                     ->orWhere('users.name', 'LIKE', '%' . $employeeIdOrName . '%');
+    //         });
+    //     }
+
+    //     // Filter by start date if provided
+    //     if ($startDate) {
+    //         $query->where('attendance.date', '>=', $startDate);
+    //     }
+
+    //     // Filter by end date if provided
+    //     if ($endDate) {
+    //         $query->where('attendance.date', '<=', $endDate);
+    //     }
+
+    //     // Execute the query and fetch the attendance records
+    //     $attendanceRecords = $query->get();
+
+    //     return response()->json($attendanceRecords);
+    // }
+
+
+
+    // public function searchEmployees(Request $request)
+    // {
+    //     $query = $request->input('query');
+
+    //     // Search the 'users' table by name or employee_id
+    //     $employees = User::where('name', 'LIKE', '%' . $query . '%')
+    //                     ->orWhere('employee_id', 'LIKE', '%' . $query . '%')
+    //                     ->limit(10) // Limit results for better performance
+    //                     ->get(['name', 'employee_id']); // Select only the needed columns
+
+    //     return response()->json($employees);
+    // }
 
 
 
