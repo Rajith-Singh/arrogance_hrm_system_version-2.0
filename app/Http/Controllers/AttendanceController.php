@@ -424,13 +424,15 @@ class AttendanceController extends Controller
     
         // Define the short leave quota (2 short leaves per employee per month)
         $SHORT_LEAVE_QUOTA = 2;
-    
-        // Track the number of short leaves taken by the employee in the current month
-        $shortLeaveCount = Leave::where('user_id', $attendance->employee_id)
-            ->where('leave_type', 'Short Leave')    // Only count short leaves
-            ->whereMonth('start_date', $currentMonth) // Consider only leaves in the current month
-            ->whereYear('start_date', $currentYear)   // And within the current year
-            ->count();
+
+        // Fetch user using employee_id from Attendance table (matching employee_id to users.emp_no)
+        $user = User::where('emp_no', $attendance->employee_id)->first(); // Get the user based on emp_no
+
+        $shortLeaveCount = Leave::where('user_id', $user->id)  // Use the fetched user's id
+        ->where('leave_type', 'Short Leave')               // Only count short leaves
+        ->whereMonth('start_date', $currentMonth)          // Consider only leaves in the current month
+        ->whereYear('start_date', $currentYear)            // And within the current year
+        ->count();
     
         // Case 1: If the employee checks in at or before 8:45 AM and checks out at or after 5:00 PM, no leave should be recorded
         if ($checkIn->lte($shortLeaveStartMorning) && $checkOut->gte($officeEndTime)) {
@@ -453,12 +455,12 @@ class AttendanceController extends Controller
         // Check if the employee is within the short leave time window and has not exceeded the quota
         if ($checkIn->between($shortLeaveStartMorning, $shortLeaveEndMorning) || $checkOut->between($shortLeaveStartEvening, $shortLeaveEndEvening)) {
             if ($shortLeaveCount < $SHORT_LEAVE_QUOTA) {
-                // Record it as a short leave since the quota is not exceeded
-                $this->createLeave($attendance->employee_id, $attendance->date, 'Short Leave', 'Late Coming - Auto claimed short leave');
+                Log::info("Creating Short Leave for Employee ID: {$attendance->employee_id}. Current Short Leave Count: {$shortLeaveCount}.");
+                $this->createLeave($attendance->employee_id, $attendance->date, 'Short Leave', 'Late Coming or Early Check-out  - Auto claimed short leave');
             } else {
-                // If quota is exceeded, mark it as Half Day
-                $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming - Exceeded Short Leave Quota');
-            }
+                Log::info("Exceeded Short Leave Quota for Employee ID: {$attendance->employee_id}. Current Short Leave Count: {$shortLeaveCount}. Creating Half Day Leave.");
+                $this->createLeave($attendance->employee_id, $attendance->date, 'Half Day', 'Late Coming or Early Check-out - Exceeded Short Leave Quota');
+            }                      
             return; // Exit early to prevent further penalty
         }
     
@@ -545,7 +547,6 @@ class AttendanceController extends Controller
             ->whereYear('date', $currentYear)
             ->count();
     
-        dd($lateCount);
     }
 
     public function checkAttendance(Request $request)

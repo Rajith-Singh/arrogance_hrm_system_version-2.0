@@ -9,20 +9,33 @@
         <x-user-sidebar />
        
 
-        <div class="flex-1">
+
+
+
+
+    <div class="flex-1">
             <div class="py-12">
                 <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                        @if (isset($remainingLeaves) && !empty($remainingLeaves))
-                            @include('components.user-dashboard', ['remainingLeaves' => $remainingLeaves])
-                        @else
-                            <p>No remaining leaves data available.</p>
-                        @endif
-                    </div>
+                        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">    
+                            @if (isset($remainingLeaves) && !empty($remainingLeaves))
+                                @include('components.user-dashboard', ['remainingLeaves' => $remainingLeaves])
+                            @else
+                                <p>No remaining leaves data available.</p>
+                            @endif
+
+                            <div class="mt-8">
+                                <!-- Call the leave-calendar component and pass the leaves data -->
+                                <x-leave-calendar :leaves="$leaves" />
+                            </div>
+                        </div>
                 </div>
             </div>
         </div>
-    </div>
+
+
+    
+
+
 
     <div id="notificationPopup" class="popup">
         <span class="close-btn" onclick="closePopup()">&times;</span>

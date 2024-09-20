@@ -19,8 +19,8 @@ Route::middleware([
     config('jetstream.auth_session'),
     // 'verified',
 ])->group(function () {
-    Route::get('/dashboard', [HomeController::class, 'dashboard'])->name('dashboard');
-});
+    Route::get('/home', [HomeController::class, 'index'])->name('home');
+    Route::get('/dashboard', [HomeController::class, 'dashboard'])->name('dashboard');});
 
 
 Route::get('/test-db-connection', function () {
@@ -110,7 +110,7 @@ Route::post('/leaves/{leaveId}/delete-with-reason', [LeaveController::class, 'de
 
 
 // Routes accessible only to admins
-Route::middleware(['role:admin'])->group(function () {
+Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/view-users',[LeaveController::class,'viewUsers']);
     Route::get('/editUser/{id}', [LeaveController::class, 'editUser']);
     Route::post('/updateUser', [LeaveController::class, 'updateUser']);
@@ -143,7 +143,7 @@ Route::middleware(['role:supervisor'])->group(function () {
 });
 
 // Routes accessible only to management
-Route::middleware(['role:management'])->group(function () {
+Route::middleware(['auth', 'role:management'])->group(function () {
     Route::get('/view-leaves-mgt',[LeaveController::class,'viewEmpLeaveMgt']);
 
     Route::get('/view-mgt-leave/{user_id}/{leave_id}', [LeaveController::class, 'viewMgtLeaveRequest']);
@@ -185,7 +185,7 @@ Route::middleware(['role:management'])->group(function () {
 
 
 // Routes accessible only to hr
-Route::middleware(['role:hr'])->group(function () {
+Route::middleware(['auth', 'role:hr'])->group(function () {
 
     Route::get('/add-leave-type', function () {
         return view('hr.add-leave');
