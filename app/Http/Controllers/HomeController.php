@@ -12,10 +12,6 @@ class HomeController extends Controller
 
     public function __construct(LeaveController $leaveController)
     {
-        // Protect all methods in this controller using 'auth' middleware
-        //$this->middleware('auth');
-
-        // Set the LeaveController dependency
         $this->leaveController = $leaveController;
     }
 
@@ -23,49 +19,50 @@ class HomeController extends Controller
     {
         // Check if user is authenticated
         if (!Auth::check()) {
-            // Redirect to login if the user is not authenticated
-            return redirect()->route('login');
+            // Fetch leave data for the calendar
+            $leaves = $this->fetchLeaveData();
+            $userData['leaves'] = $leaves;
+
+            // Redirect to the dashboard route with leaves data
+            return view('dashboard', $userData);
         }
 
-        // Initialize user data
         $userData = ['usertype' => Auth::user()->usertype];
 
-        // Fetch leave data for authenticated user
-        $leaves = $this->fetchLeaveData();
-        $userData['leaves'] = $leaves; // Pass the leaves data to the view
-
-        // Handle different user types
+        // Fetch leave data for user and pass it to the view
         if (Auth::user()->usertype === 'user') {
-            // Fetch remaining leaves for user
+            $leaves = $this->fetchLeaveData(); // Assuming this method fetches leave data for users
+            $userData['leaves'] = $leaves; // Pass the leaves data to the view
+            //dd($userData['leaves']);
+
+            // Fetch remaining leaves data if necessary
             $remainingLeaves = $this->leaveController->getRemainingLeaves(request());
             $userData['remainingLeaves'] = $remainingLeaves;
 
-            // Return the dashboard view with leaves and remaining leaves data
+            // Return the dashboard view with both leaves and remaining leaves data
             return view('dashboard', $userData);
+        } else if (Auth::user()->usertype === 'hr' || Auth::user()->usertype === 'supervisor') {
+            $remainingLeaves = $this->leaveController->getRemainingLeaves(request());
+            $userData['remainingLeaves'] = $remainingLeaves;
 
-        } elseif (in_array(Auth::user()->usertype, ['hr', 'supervisor', 'management'])) {
-            // Fetch remaining leaves for HR and supervisors
-            if (Auth::user()->usertype !== 'management') {
-                $remainingLeaves = $this->leaveController->getRemainingLeaves(request());
-                $userData['remainingLeaves'] = $remainingLeaves;
-            }
-
-            // Return the appropriate view for HR, Supervisor, or Management
-            return view($this->getViewForUserType(), $userData);
+            // Fetch leave data for the calendar
+            $leaves = $this->fetchLeaveData();
+            $userData['leaves'] = $leaves;
+        } else if (Auth::user()->usertype === 'management') {
+            // Fetch leave data for the calendar
+            $leaves = $this->fetchLeaveData();
+            $userData['leaves'] = $leaves;
         }
 
-        // Fallback for undefined user types (redirect to dashboard)
-        return view('dashboard', $userData);
+        return view($this->getViewForUserType(), $userData);
     }
 
     private function getViewForUserType()
     {
-        // Make sure the user is authenticated before accessing their usertype
         if (!Auth::check()) {
-            return 'auth.login'; // Return login view if the user is not authenticated
+            return 'auth.login'; // Return login view if user is not authenticated
         }
 
-        // Switch case to return the appropriate view for different user types
         switch (Auth::user()->usertype) {
             case 'admin':
                 return 'admin.home';
@@ -82,35 +79,31 @@ class HomeController extends Controller
 
     public function fetchLeaveData()
     {
-        // Ensure user is authenticated before fetching leave data
         if (!Auth::check()) {
-            return collect(); // Return empty collection if not authenticated
+            return collect(); // Return empty if not authenticated
         }
 
-        // Fetch leave data based on user type
-        switch (Auth::user()->usertype) {
-            case 'hr':
-                return $this->leaveController->getLeaveDataForCalendar();
-            case 'management':
-                return $this->leaveController->getLeaveMgtDataForCalendar();
-            case 'supervisor':
-                return $this->leaveController->getLeaveSupDataForCalendar();
-            case 'user':
-                // Fetch logged-in user's leaves
-                return $this->leaveController->getUserLeaveDataForCalendar(Auth::id());
-            default:
-                return collect(); // Return empty collection if no leaves are available
+        if (Auth::user()->usertype === 'hr') {
+            return $this->leaveController->getLeaveDataForCalendar();
+        } else if (Auth::user()->usertype === 'management') {
+            return $this->leaveController->getLeaveMgtDataForCalendar();
+        } else if (Auth::user()->usertype === 'supervisor') {
+            return $this->leaveController->getLeaveSupDataForCalendar();
+        } elseif (Auth::user()->usertype === 'user') {
+            // Fetch the logged-in user's leaves
+            return $this->leaveController->getUserLeaveDataForCalendar(Auth::id()); // Pass the user's ID
         }
+
+        return collect(); // Return an empty collection if no leaves are available
     }
 
     public function dashboard()
     {
-        // Ensure user is authenticated before accessing the dashboard
+        // Check if user is authenticated
         if (!Auth::check()) {
             return redirect()->route('login'); // Redirect to login if the user is not authenticated
         }
 
-        // Initialize user data for the dashboard
         $userData = ['usertype' => Auth::user()->usertype];
 
         // Fetch remaining leaves if user type is 'user'
@@ -119,7 +112,6 @@ class HomeController extends Controller
             $userData['remainingLeaves'] = $remainingLeaves;
         }
 
-        // Return the dashboard view with user data
         return view('dashboard', $userData);
     }
 }

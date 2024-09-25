@@ -23,13 +23,13 @@ class RoleMiddleware
             return redirect()->route('login');
         }
 
-        // Check if the authenticated user's role matches the required role
-        if (Auth::user()->role !== $role) {
+        // Check if the authenticated user's usertype matches the required role
+        if (Auth::user()->usertype !== $role) {
             // If the user's role does not match, redirect to the home page with an error message
             return redirect('/home')->with('error', 'You do not have access to this page.');
         }
 
-        // If the role matches, allow the request to proceed
+        // If the usertype matches, allow the request to proceed
         return $next($request);
     }
 }

@@ -74,10 +74,20 @@
 
                     data.forEach(record => {
                         const row = document.createElement('tr');
+                        
+                        // Check if the Check In > 8:45 AM or Check Out < 5:00 PM and highlight accordingly
+                        const checkInTime = new Date(`1970-01-01T${record.real_check_in}`);
+                        const checkOutTime = new Date(`1970-01-01T${record.real_check_out}`);
+                        const checkInLimit = new Date('1970-01-01T08:45:00');
+                        const checkOutLimit = new Date('1970-01-01T17:00:00');
+
+                        let checkInClass = checkInTime > checkInLimit ? 'text-red-600 font-bold' : '';
+                        let checkOutClass = checkOutTime < checkOutLimit ? 'text-red-600 font-bold' : '';
+
                         row.innerHTML = `
                             <td class="px-6 py-4 whitespace-nowrap">${record.date}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">${record.real_check_in}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">${record.real_check_out}</td>
+                            <td class="px-6 py-4 whitespace-nowrap ${checkInClass}">${record.real_check_in}</td>
+                            <td class="px-6 py-4 whitespace-nowrap ${checkOutClass}">${record.real_check_out}</td>
                             <td class="px-6 py-4 whitespace-nowrap">${record.verify_code}</td>
                         `;
                         tbody.appendChild(row);

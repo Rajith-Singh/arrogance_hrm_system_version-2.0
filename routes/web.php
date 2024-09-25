@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ChatController;
 
 use Illuminate\Support\Facades\Mail;
 
@@ -80,6 +81,13 @@ Route::post('/notifications/mark-all-as-read', [NotificationController::class, '
 
 Route::post('/leaves/{leaveId}/delete-with-reason', [LeaveController::class, 'deleteWithReason'])->name('leaves.deleteWithReason');
 
+Route::get('/chat/{receiverId?}', [ChatController::class, 'index'])->name('chat');
+Route::post('/send-message', [ChatController::class, 'sendMessage'])->name('send.message');
+Route::get('/chat-history/{receiverId}', [ChatController::class, 'getChatHistory']);
+
+
+
+
 
 
 
@@ -119,7 +127,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 });
 
 // Routes accessible only to supervisors
-Route::middleware(['role:supervisor'])->group(function () {
+Route::middleware(['auth', 'role:supervisor'])->group(function () {
     Route::get('/view-leaves',[LeaveController::class,'viewEmpLeave']);
 
     Route::get('/view-emp-leave/{user_id}/{leave_id}', [LeaveController::class, 'viewEmpLeaveRequest']);
