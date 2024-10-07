@@ -48,7 +48,7 @@
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
 
-        fetch(`/attendance-tracking?start_date=${startDate}&end_date=${endDate}`)
+        fetch(`/attendance-tracking-sup?start_date=${startDate}&end_date=${endDate}`)
             .then(response => response.json())
             .then(data => {
                 const recordsDiv = document.getElementById('attendance-records');
@@ -135,7 +135,7 @@
     // Function to submit or update reason
     function updateReason(recordId) {
         const reason = document.getElementById(`reason-${recordId}`).value;
-        fetch(`/submit-reason`, {
+        fetch(`/submit-reason-sup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

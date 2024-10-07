@@ -1,4 +1,3 @@
-<!-- resources/views/emails/weekly_report.blade.php -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -19,8 +18,8 @@
             margin: auto;
         }
         .header {
-            background-color: #4CAF50;
-            color: white;
+            background-color: #fcf635; /* Warning color */
+            color: black; /* Better contrast */
             padding: 10px;
             text-align: center;
             border-radius: 8px 8px 0 0;
@@ -39,7 +38,7 @@
             padding: 8px;
         }
         th {
-            background-color: #4CAF50;
+            background-color: #fcf635; /* Warning color */
             color: white;
         }
         tr:nth-child(even) {
@@ -52,7 +51,7 @@
             margin-top: 20px;
         }
         .footer a {
-            color: #4CAF50;
+            color: #FF9800; /* Warning color */
             text-decoration: none;
         }
     </style>
@@ -60,30 +59,11 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>Weekly Latecomers Report</h1>
+            <h1>Support Request</h1>
         </div>
         <div class="content">
-            <p>Hello Management,</p>
-            <p>Here are the latecomers for the previous week:</p>
-            @foreach($latecomers as $date => $employees)
-                <h3>{{ $date }}</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Arrival Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($employees as $employee)
-                            <tr>
-                                <td>{{ $employee['name'] }}</td>
-                                <td>{{ $employee['real_check_in'] }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @endforeach
+            <p><strong>Message:</strong></p>
+            <p>{{ $messageBody }}</p>
         </div>
         <div class="footer">
             <p>HRM System - Arrogance Technologies (Pvt) Ltd</p>

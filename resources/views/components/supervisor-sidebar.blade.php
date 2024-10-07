@@ -34,18 +34,18 @@
               <a href="/view-leaves">Manage Employer Leave</a>
 	          </li>
 
-            <li class="{{ Request::is('track-attendance') ? 'active' : '' }}">
-              <a href="/track-attendance">Track My Attendance</a>
+            <li class="{{ Request::is('track-attendance-Sup') ? 'active' : '' }}">
+              <a href="/track-attendance-Sup">Track My Attendance</a>
 	          </li>
 
-            
 
-              <li>
-              <a href="#">Help and Support</a>
+            <li class="{{ Request::is('supportSup') ? 'active' : '' }}">
+              <a href="/supportSup">Help and Support</a>
 	          </li>
+
 
             <li class="{{ Request::is('view-sup-leaves') ? 'active' : '' }}">
-              <a href="/view-sup-leaves">Notifications</a>
+              <a href="/view-sup-leaves">Leave History</a>
 	          </li>
 
 	        </ul>

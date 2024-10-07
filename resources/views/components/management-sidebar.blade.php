@@ -46,8 +46,8 @@
               <a href="/track-attendance">Track My Attendance</a>
 	          </li>
 
-              <li>
-              <a href="#">Help and Support</a>
+            <li class="{{ Request::is('supportMgt') ? 'active' : '' }}">
+              <a href="/supportMgt">Help and Support</a>
 	          </li>
 
               <li>

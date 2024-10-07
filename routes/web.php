@@ -1,132 +1,69 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\SupportController;
 
-use Illuminate\Support\Facades\Mail;
-
-
+// Public route, accessible without login
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::middleware([
-    'auth:sanctum',
-    config('jetstream.auth_session'),
-    // 'verified',
-])->group(function () {
+// Routes that require authentication, using 'auth' middleware
+Route::middleware(['auth'])->group(function () {
+    // Home and dashboard routes
     Route::get('/home', [HomeController::class, 'index'])->name('home');
-    Route::get('/dashboard', [HomeController::class, 'dashboard'])->name('dashboard');});
+    Route::get('/dashboard', [HomeController::class, 'dashboard'])->name('dashboard');
 
+    // User-specific routes
+    Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
+    Route::get('/support', function () {
+        return view('support-desk');
+    });
 
-Route::get('/test-db-connection', function () {
-    $serverName = ".";
-    $connectionInfo = array("Database" => "arrogance_db", "UID" => "sa", "PWD" => "error404@PHP");
-    $conn = sqlsrv_connect($serverName, $connectionInfo);
+    // Leave management
+    Route::post('/saveLeave', [LeaveController::class, 'storeLeave']);
+    Route::get('/manage-leave', [LeaveController::class, 'viewLeaves']);
+    Route::get('/editLeave/{id}', [LeaveController::class, 'editLeave']);
+    Route::post('/updateLeave', [LeaveController::class, 'updateLeave']);
+    Route::delete('/deleteLeave/{id}', [LeaveController::class, 'deleteLeave']);
+    Route::get('/view-my-leaves', [LeaveController::class, 'viewMyLeaves']);
+    Route::get('/get-remaining-leaves', [LeaveController::class, 'getRemainingLeaves']);
+    Route::get('/request-leave', [LeaveController::class, 'getuser']);
 
-    if ($conn) {
-        return "Connection established.<br />";
-    } else {
-        return "Connection could not be established.<br />" . print_r(sqlsrv_errors(), true);
-    }
+    // Notifications routes
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'getUnreadNotificationCount']);
+    Route::post('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::post('/leaves/{leaveId}/delete-with-reason', [LeaveController::class, 'deleteWithReason'])->name('leaves.deleteWithReason');
+
+    // Chat routes
+    Route::get('/chat/{receiverId?}', [ChatController::class, 'index'])->name('chat');
+    Route::post('/send-message', [ChatController::class, 'sendMessage'])->name('send.message');
+    Route::get('/chat-history/{receiverId}', [ChatController::class, 'getChatHistory']);
+
+    // Attendance routes
+    Route::get('/check-late-count/{employeeId}', [AttendanceController::class, 'checkCount']);
+    Route::get('/attendance-tracking', [AttendanceController::class, 'checkAttendance']);
+    Route::get('/track-attendance', function () {
+        return view('view-attendance');
+    });
+    Route::post('/submit-reason', [AttendanceController::class, 'submitReason'])->name('submit-reason');
+
 });
 
-
-
-Route::get('/check-late-count/{employeeId}', [AttendanceController::class, 'checkCount']);
-
-Route::get('/track-attendance', function () {
-    return view('view-attendance');
-});
-
-Route::get('/attendance-tracking', [AttendanceController::class, 'checkAttendance']);
-
-
-
-route::get('/home', [HomeController::class, 'index']);
-
-// User (Employer) Routes
-
-// Route::get('/request-leave', function () {
-//     return view('emp-leave');
-// });
-
-Route::post('/saveLeave',[LeaveController::class,'storeLeave']);
-
-Route::get('/manage-leave',[LeaveController::class,'viewLeaves']);
-
-Route::get('/editLeave/{id}', [LeaveController::class, 'editLeave']);
-
-Route::post('/updateLeave', [LeaveController::class, 'updateLeave']);
-
-Route::delete('/deleteLeave/{id}', [LeaveController::class, 'deleteLeave']);
-
-Route::get('/view-my-leaves',[LeaveController::class,'viewMyLeaves']);
-
-Route::get('/get-remaining-leaves',[LeaveController::class,'getRemainingLeaves']);
-
-Route::get('/request-leave', [LeaveController::class, 'getuser']);
-
-// Define the routes for notifications
-Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
-Route::get('/notifications/unread-count', [NotificationController::class, 'getUnreadNotificationCount']);
-Route::post('/notifications/mark-all-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
-
-
-
-Route::post('/leaves/{leaveId}/delete-with-reason', [LeaveController::class, 'deleteWithReason'])->name('leaves.deleteWithReason');
-
-Route::get('/chat/{receiverId?}', [ChatController::class, 'index'])->name('chat');
-Route::post('/send-message', [ChatController::class, 'sendMessage'])->name('send.message');
-Route::get('/chat-history/{receiverId}', [ChatController::class, 'getChatHistory']);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// // Supervisor Routes
-
-// Route::get('/view-leaves',[LeaveController::class,'viewEmpLeave']);
-
-// Route::get('/view-emp-leave/{user_id}/{leave_id}', [LeaveController::class, 'viewEmpLeaveRequest']);
-
-// Route::post('/update-supervisor-approval', [LeaveController::class, 'updateSupervisorApproval']);
-
-// // Management Routes
-
-// Route::get('/view-leaves-mgt',[LeaveController::class,'viewEmpLeaveMgt']);
-
-// Route::get('/view-mgt-leave/{user_id}/{leave_id}', [LeaveController::class, 'viewMgtLeaveRequest']);
-
-// Route::post('/update-management-approval', [LeaveController::class, 'updateManagementApproval']);
-
-
-
-// Routes accessible only to admins
+// Admin-only routes with 'role:admin' middleware
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/view-users',[LeaveController::class,'viewUsers']);
+    Route::get('/view-users', [LeaveController::class, 'viewUsers']);
     Route::get('/editUser/{id}', [LeaveController::class, 'editUser']);
     Route::post('/updateUser', [LeaveController::class, 'updateUser']);
-
-    
 });
 
-// Routes accessible only to supervisors
+// Supervisor-only routes with 'role:supervisor' middleware
 Route::middleware(['auth', 'role:supervisor'])->group(function () {
     Route::get('/view-leaves',[LeaveController::class,'viewEmpLeave']);
 
@@ -147,10 +84,22 @@ Route::middleware(['auth', 'role:supervisor'])->group(function () {
     Route::post('/notifications/supervisor/approve/{id}', [NotificationController::class, 'approve'])->name('notifications.supervisor.approve');
     Route::post('/notifications/supervisor/reject/{id}', [NotificationController::class, 'reject'])->name('notifications.supervisor.reject');
 
+    Route::get('/attendance-tracking-sup', [AttendanceController::class, 'checkAttendanceSup']);
 
+    Route::get('/track-attendance-Sup', function () {
+        return view('supervisor.sup-view-attendance');
+    });
+    Route::post('/submit-reason-sup', [AttendanceController::class, 'submitReasonSup'])->name('submit-reason-sup');
+
+    
+    Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
+
+    Route::get('/supportSup', function () {
+        return view('supervisor.support-desk');
+    });
 });
 
-// Routes accessible only to management
+// Management-only routes with 'role:management' middleware
 Route::middleware(['auth', 'role:management'])->group(function () {
     Route::get('/view-leaves-mgt',[LeaveController::class,'viewEmpLeaveMgt']);
 
@@ -185,95 +134,93 @@ Route::middleware(['auth', 'role:management'])->group(function () {
 
     Route::get('/employee-search', [AttendanceController::class, 'searchEmployees']);
 
+    Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
 
+    Route::get('/supportMgt', function () {
+        return view('management.support-desk');
+    });
 
+    Route::get('/attendance-tracking-mgt', [AttendanceController::class, 'checkAttendanceMgt']);
+
+    Route::get('/track-attendance-Mgt', function () {
+        return view('management.mgt-view-attendance');
+    });
+
+    Route::post('/submit-reason-mgt', [AttendanceController::class, 'submitReasonMgt'])->name('submit-reason-mgt');
 
 });
 
-
-
-// Routes accessible only to hr
+// HR-only routes with 'role:hr' middleware
 Route::middleware(['auth', 'role:hr'])->group(function () {
-
     Route::get('/add-leave-type', function () {
         return view('hr.add-leave');
     });
-
-    Route::post('/addLeave',[LeaveController::class,'addLeave']);
-
+    Route::post('/addLeave', [LeaveController::class, 'addLeave']);
     Route::get('/add-attendance', function () {
         return view('hr.add-attendance');
     });
-
     Route::get('/add-attendance-alternative', function () {
         return view('hr.add-attendance-alternative');
     });
-
     Route::post('/upload-attendance', [AttendanceController::class, 'uploadAttendance']);
-
-    // Route::get('/track-attendance', function () {
-    //     return view('view-attendance');
-    // });
-
-    // Route::get('/attendance-tracking', [AttendanceController::class, 'checkAttendance'])->name('attendance.tracking');
-
     Route::get('/view-emp-attendance', function () {
         return view('hr.view-emp-attendance');
     });
-
     Route::get('/emp-attendance-tracking', [AttendanceController::class, 'checkEmpAttendance']);
-
     Route::post('/update-checkout/{id}', [AttendanceController::class, 'updateCheckOut']);
-
     Route::get('/reports', function () {
         return view('hr.reports');
     });
-
     Route::get('/add-manual-attendance', function () {
         return view('hr.add-manual-attendance');
     });
-
     Route::get('/add-manual-leave', function () {
         return view('hr.add-manual-leave');
     });
-
-    Route::post('/addManualLeave',[LeaveController::class,'storeManualLeave']);
-
+    Route::post('/addManualLeave', [LeaveController::class, 'storeManualLeave']);
     Route::get('/edit-delete-leave', function () {
         return view('hr.edit-delete-leave-manual');
     });
 
-    Route::post('/saveManualAttendance',[AttendanceController::class,'storeManualAttendance']);
-
-    Route::post('/attendance-report', [AttendanceController::class, 'attendanceReport']);
-    Route::post('/attendance-summary-report', [AttendanceController::class, 'attendanceSummaryReport']);
-    Route::post('/leave-report', [AttendanceController::class, 'leaveReport']);
-    Route::post('/leave-summary-report', [AttendanceController::class, 'leaveSummaryReport']);
-
-
-    Route::post('/leaves/search', [LeaveController::class, 'search'])->name('leaves.search');
-    Route::post('/leaves/{id}/update', [LeaveController::class, 'update'])->name('leaves.update');
-    Route::delete('/leaves/{id}', [LeaveController::class, 'destroy'])->name('leaves.destroy');
-
     Route::get('/add-holiday', [AttendanceController::class, 'create'])->name('example.create');
     Route::post('/add-holiday', [AttendanceController::class, 'store'])->name('example.store');
-
 
     Route::get('/request-hr-leave', [LeaveController::class, 'getHruser']);
 
     Route::post('/saveHrLeave',[LeaveController::class,'storeHrLeave']);
 
+    Route::post('/saveManualAttendance', [AttendanceController::class, 'storeManualAttendance']);
+    Route::post('/attendance-report', [AttendanceController::class, 'attendanceReport']);
+    Route::post('/attendance-summary-report', [AttendanceController::class, 'attendanceSummaryReport']);
+    Route::post('/leave-report', [AttendanceController::class, 'leaveReport']);
+    Route::post('/leave-summary-report', [AttendanceController::class, 'leaveSummaryReport']);
+    Route::post('/leaves/search', [LeaveController::class, 'search'])->name('leaves.search');
+    Route::post('/leaves/{id}/update', [LeaveController::class, 'update'])->name('leaves.update');
+    Route::delete('/leaves/{id}', [LeaveController::class, 'destroy'])->name('leaves.destroy');
+    Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
+    Route::get('/supportHR', function () {
+        return view('hr.support-desk');
+    });
 
+    Route::get('/attendance-tracking-hr', [AttendanceController::class, 'checkAttendanceHR']);
+
+    Route::get('/track-attendance-HR', function () {
+        return view('hr.hr-view-attendance');
+    });
+
+    Route::post('/submit-reason-hr', [AttendanceController::class, 'submitReasonHR'])->name('submit-reason-hr');
 
 });
 
+// Test database connection route (publicly accessible)
+Route::get('/test-db-connection', function () {
+    $serverName = ".";
+    $connectionInfo = ["Database" => "arrogance_db", "UID" => "sa", "PWD" => "error404@PHP"];
+    $conn = sqlsrv_connect($serverName, $connectionInfo);
 
-
-
-
-
-
-
-
-
-
+    if ($conn) {
+        return "Connection established.<br />";
+    } else {
+        return "Connection could not be established.<br />" . print_r(sqlsrv_errors(), true);
+    }
+});

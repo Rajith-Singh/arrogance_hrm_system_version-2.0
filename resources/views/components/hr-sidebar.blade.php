@@ -50,9 +50,6 @@
                 <li class="{{ Request::is('edit-delete-leave') ? 'active' : '' }}">
                   <a href="/edit-delete-leave">Edit/Delete Leave</a>
                 </li>
-                <li>
-                  <a href="#">Manage Special Leave</a>
-                </li>
                 <li class="{{ Request::is('reports') ? 'active' : '' }}">
                   <a href="/reports">Report</a>
                 </li>
@@ -70,8 +67,8 @@
                 <li class="{{ Request::is('manage-leave') ? 'active' : '' }}">
                   <a href="/manage-leave">Manage My Leaves</a>
                 </li>
-                <li class="{{ Request::is('track-attendance') ? 'active' : '' }}">
-                  <a href="/track-attendance">My Attendance Tracking</a>
+                <li class="{{ Request::is('track-attendance-HR') ? 'active' : '' }}">
+                  <a href="/track-attendance-HR">My Attendance Tracking</a>
                 </li>
                 <li class="{{ Request::is('view-my-leaves') ? 'active' : '' }}">
                   <a href="/view-my-leaves">Notifications</a>
@@ -89,9 +86,11 @@
             <li>
               <a href="#" class="main-category" data-category="help-support">Help and Support <i class="fa fa-chevron-down expand-icon"></i></a>
               <ul class="submenu" id="help-support-submenu">
-                <li>
-                  <a href="#">Help and Support</a>
+
+                <li class="{{ Request::is('supportHR') ? 'active' : '' }}">
+                  <a href="/supportHR">Help and Support</a>
                 </li>
+
               </ul>
             </li>
           </ul>

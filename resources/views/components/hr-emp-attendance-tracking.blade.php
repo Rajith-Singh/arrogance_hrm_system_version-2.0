@@ -2,7 +2,7 @@
     <x-application-logo class="block h-12 w-auto" />
 
     <h1 class="mt-8 text-2xl font-medium text-gray-900">
-        Edit Attendance
+        Track Your Attendance
     </h1>
 </div>
 
@@ -12,13 +12,9 @@
             <div class="p-6">
                 <x-validation-errors class="mb-4" />
 
-                <!-- Date and Employee ID Filter Form -->
+                <!-- Date Filter Form -->
                 <form id="filter-form" class="mb-6">
                     <div class="flex items-center justify-between">
-                        <div class="flex-1 mr-4">
-                            <label for="employee_id" class="block text-sm font-medium text-gray-700">Employee ID</label>
-                            <input type="text" id="employee_id" name="employee_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
                         <div class="flex-1 mr-4">
                             <label for="start_date" class="block text-sm font-medium text-gray-700">Start Date</label>
                             <input type="date" id="start_date" name="start_date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
@@ -49,11 +45,10 @@
     document.getElementById('filter-form').addEventListener('submit', function (e) {
         e.preventDefault();
 
-        const employeeId = document.getElementById('employee_id').value;
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
 
-        fetch(`/emp-attendance-tracking?employee_id=${employeeId}&start_date=${startDate}&end_date=${endDate}`)
+        fetch(`/attendance-tracking?start_date=${startDate}&end_date=${endDate}`)
             .then(response => response.json())
             .then(data => {
                 const recordsDiv = document.getElementById('attendance-records');
@@ -69,7 +64,7 @@
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verify Code</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                             <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     `;
@@ -80,18 +75,39 @@
 
                     data.forEach(record => {
                         const row = document.createElement('tr');
+                        
+                        // Check if the Check In > 8:30 AM or Check Out < 5:00 PM and highlight accordingly
+                        const checkInTime = new Date(`1970-01-01T${record.real_check_in}`);
+                        const checkOutTime = new Date(`1970-01-01T${record.real_check_out}`);
+                        const checkInLimit = new Date('1970-01-01T08:30:00');
+                        const checkOutLimit = new Date('1970-01-01T17:00:00');
+
+                        let checkInClass = checkInTime > checkInLimit ? 'text-red-600 font-bold' : '';
+                        let checkOutClass = checkOutTime < checkOutLimit ? 'text-red-600 font-bold' : '';
+
+                        // Only show text fields for late or early check-outs
+                        let reasonField = '';
+                        let actionButton = '';
+
+                        if (checkInClass || checkOutClass) {
+                            reasonField = `<span id="reason-text-${record.id}">${record.reason || ''}</span>`;
+
+                            // If reason exists, show "Edit" button (yellow), else show "Add" button (blue)
+                            if (!record.reason) {
+                                actionButton = `<button onclick="editReason(${record.id})" class="ml-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add</button>`;
+                            } else {
+                                actionButton = `<button onclick="editReason(${record.id})" class="ml-2 bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Edit</button>`;
+                            }
+                        } else {
+                            reasonField = `${record.reason || ''}`;
+                        }
+
                         row.innerHTML = `
                             <td class="px-6 py-4 whitespace-nowrap">${record.date}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <input type="time" id="check_in_${record.id}" value="${record.real_check_in}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <input type="time" id="check_out_${record.id}" value="${record.real_check_out}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">${record.verify_code}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button onclick="updateAttendance(${record.id})" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Update</button>
-                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap ${checkInClass}">${record.real_check_in}</td>
+                            <td class="px-6 py-4 whitespace-nowrap ${checkOutClass}">${record.real_check_out}</td>
+                            <td class="px-6 py-4 whitespace-nowrap" id="reason-container-${record.id}">${reasonField}</td>
+                            <td class="px-6 py-4 whitespace-nowrap" id="action-${record.id}">${actionButton}</td>
                         `;
                         tbody.appendChild(row);
                     });
@@ -105,26 +121,37 @@
             .catch(error => console.error('Error:', error));
     });
 
-    function updateAttendance(recordId) {
-        const checkInTime = document.getElementById(`check_in_${recordId}`).value;
-        const checkOutTime = document.getElementById(`check_out_${recordId}`).value;
+    // Function to show input field for adding/editing reason
+    function editReason(recordId) {
+        const reasonText = document.getElementById(`reason-text-${recordId}`).innerText || '';
+        document.getElementById(`reason-container-${recordId}`).innerHTML = `
+            <input type="text" id="reason-${recordId}" value="${reasonText}" class="border-gray-300 rounded-md shadow-sm">
+        `;
+        document.getElementById(`action-${recordId}`).innerHTML = `
+            <button onclick="updateReason(${recordId})" class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Update</button>
+        `;
+    }
 
-        fetch(`/update-checkout/${recordId}`, {
+    // Function to submit or update reason
+    function updateReason(recordId) {
+        const reason = document.getElementById(`reason-${recordId}`).value;
+        fetch(`/submit-reason`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({ check_in: checkInTime, check_out: checkOutTime })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Attendance times updated successfully.');
-            } else {
-                alert('Failed to update attendance times.');
-            }
-        })
-        .catch(error => console.error('Error:', error));
+            body: JSON.stringify({
+                record_id: recordId,
+                reason: reason
+            })
+        }).then(response => response.json())
+          .then(data => {
+              alert('Reason updated successfully!');
+              document.getElementById(`reason-container-${recordId}`).innerHTML = `<span id="reason-text-${recordId}">${reason}</span>`;
+              document.getElementById(`action-${recordId}`).innerHTML = `<button onclick="editReason(${recordId})" class="ml-2 bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">Edit</button>`;
+          }).catch(error => {
+              console.error('Error:', error);
+          });
     }
 </script>

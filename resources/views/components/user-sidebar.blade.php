@@ -31,11 +31,11 @@
                 </li>
 
                 <li class="{{ Request::is('view-my-leaves') ? 'active' : '' }}">
-                  <a href="/view-my-leaves">Notifications</a>
+                  <a href="/view-my-leaves">Leave History</a>
                 </li>
 
-                <li>
-                  <a href="#">Help and Support</a>
+                <li class="{{ Request::is('support') ? 'active' : '' }}">
+                  <a href="/support">Help and Support</a>
                 </li>
 
 
