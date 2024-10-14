@@ -56,7 +56,7 @@
                                                 <!-- Show Study/Training Leave as a priority option for interns -->
                                                 <option value="Study/Training Leave">Study/Training Leave</option>
                                                 <option value="Half Day">Half Day</option>
-                                                <!-- <option value="Short Leave">Short Leave</option> -->
+                                                <option value="Short Leave">Short Leave</option>
                                                 <option value="Duty Leave">Duty Leave</option>
                                                 <option value="Election Leave - Half Day">Election Leave - Half Day</option>
                                                 <option value="Election Leave - Full Day">Election Leave - Full Day</option>
@@ -69,7 +69,7 @@
                                                 <option value="Work On Leave">Work On Leave</option>
                                                 <option value="No Pay Leave">No Pay Leave</option>
                                                 <option value="Half Day">Half Day</option>
-                                                <!-- <option value="Short Leave">Short Leave</option> -->
+                                                <option value="Short Leave">Short Leave</option>
                                                 <option value="Duty Leave">Duty Leave</option>
                                                 <option value="Study/Training Leave">Study/Training Leave</option>
                                                 <option value="Election Leave - Half Day">Election Leave - Half Day</option>

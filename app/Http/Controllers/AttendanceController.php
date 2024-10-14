@@ -475,8 +475,8 @@ class AttendanceController extends Controller
         $lateEndTime = Carbon::createFromTime(8, 46);
         $halfDayTime = Carbon::createFromTime(12, 30);
         $morningCutoffTime = Carbon::createFromTime(10, 0); // After 10:00 AM, apply half-day rules
-        $shortLeaveStartMorning = Carbon::createFromTime(8, 45);
-        $shortLeaveEndMorning = Carbon::createFromTime(10, 0);
+        $shortLeaveStartMorning = Carbon::createFromTime(8, 31);
+        $shortLeaveEndMorning = Carbon::createFromTime(10, 01);
         $shortLeaveStartEvening = Carbon::createFromTime(15, 30);
         $shortLeaveEndEvening = Carbon::createFromTime(17, 0);
         $officeEndTime = Carbon::createFromTime(17, 0); // End of the office day (5:00 PM)
