@@ -475,7 +475,7 @@ class AttendanceController extends Controller
         $lateEndTime = Carbon::createFromTime(8, 46);
         $halfDayTime = Carbon::createFromTime(12, 30);
         $morningCutoffTime = Carbon::createFromTime(10, 0); // After 10:00 AM, apply half-day rules
-        $shortLeaveStartMorning = Carbon::createFromTime(8, 31);
+        $shortLeaveStartMorning = Carbon::createFromTime(8, 45);
         $shortLeaveEndMorning = Carbon::createFromTime(10, 01);
         $shortLeaveStartEvening = Carbon::createFromTime(15, 30);
         $shortLeaveEndEvening = Carbon::createFromTime(17, 0);
@@ -878,8 +878,15 @@ class AttendanceController extends Controller
         $employeeId = $request->input('employee_id');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $employeeSysId = User::where('emp_no', $employeeId)
+                    ->select('name', 'emp_no', 'id', 'profile_photo_path')
+                    ->first();
 
-        $query = Leave::where('user_id', $employeeId);
+        //dd($employeeSysId->id);
+
+        $query = Leave::where('user_id', $employeeSysId->id);
+
+        //dd($query);
 
         if ($startDate) {
             $query->where('start_date', '>=', $startDate);

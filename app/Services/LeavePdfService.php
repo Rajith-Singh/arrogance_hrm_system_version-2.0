@@ -87,16 +87,20 @@ class LeavePdfService
         // Table header
         $pdf->SetFont('helvetica', 'B', 12);
         $pdf->SetFillColor(220, 220, 220);
-        $pdf->Cell(60, 10, 'Start Date', 1, 0, 'C', 1);
-        $pdf->Cell(60, 10, 'End Date', 1, 0, 'C', 1);
+        $pdf->Cell(40, 10, 'Start Date', 1, 0, 'C', 1);
+        $pdf->Cell(40, 10, 'End Date', 1, 0, 'C', 1);
+        $pdf->Cell(40, 10, 'Leave Type', 1, 0, 'C', 1);
         $pdf->Cell(60, 10, 'Reason', 1, 1, 'C', 1);
 
         // Table body
         $pdf->SetFont('helvetica', '', 10);
         foreach ($leaveRecords as $record) {
-            $pdf->Cell(60, 10, Carbon::parse($record->start_date)->format('Y-m-d'), 1, 0, 'C');
-            $pdf->Cell(60, 10, Carbon::parse($record->end_date)->format('Y-m-d'), 1, 0, 'C');
-            $pdf->Cell(60, 10, $record->reason, 1, 1, 'C');
+            $pdf->Cell(40, 10, Carbon::parse($record->start_date)->format('Y-m-d'), 1, 0, 'C');
+            $pdf->Cell(40, 10, Carbon::parse($record->end_date)->format('Y-m-d'), 1, 0, 'C');
+            $pdf->Cell(40, 10, $record->leave_type, 1, 0, 'C'); // Output for leave_type
+
+            // Use MultiCell for wrapping text in the Reason column
+            $pdf->MultiCell(60, 10, $record->reason, 1, 'C', 0, 1);
         }
 
         // Footer with generation details

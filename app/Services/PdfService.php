@@ -90,15 +90,37 @@ class PdfService
         $pdf->Cell(45, 10, 'Date', 1, 0, 'C', 1);
         $pdf->Cell(45, 10, 'Check In', 1, 0, 'C', 1);
         $pdf->Cell(45, 10, 'Check Out', 1, 0, 'C', 1);
-        $pdf->Cell(45, 10, 'Verify Code', 1, 1, 'C', 1);
+        $pdf->Cell(45, 10, 'Reason', 1, 1, 'C', 1);
 
         // Table body
         $pdf->SetFont('helvetica', '', 10);
         foreach ($attendanceRecords as $record) {
+            $checkInTime = Carbon::parse($record->real_check_in);
+            $checkOutTime = Carbon::parse($record->real_check_out);
+
+            // Highlight check-in after 8:30 AM and check-out before 5:00 PM
+            $highlightCheckIn = $checkInTime->gt(Carbon::createFromTime(8, 30, 0));
+            $highlightCheckOut = $checkOutTime->lt(Carbon::createFromTime(17, 0, 0));
+
+            // Row for Date
             $pdf->Cell(45, 10, $record->date, 1, 0, 'C');
-            $pdf->Cell(45, 10, Carbon::parse($record->real_check_in)->format('H:i'), 1, 0, 'C');
-            $pdf->Cell(45, 10, Carbon::parse($record->real_check_out)->format('H:i'), 1, 0, 'C');
-            $pdf->Cell(45, 10, $record->verify_code, 1, 1, 'C');
+
+            // Check In - highlight if after 8:30 AM
+            if ($highlightCheckIn) {
+                $pdf->SetTextColor(255, 0, 0); // Red color
+            }
+            $pdf->Cell(45, 10, $checkInTime->format('H:i'), 1, 0, 'C');
+            $pdf->SetTextColor(0, 0, 0); // Reset text color to black
+
+            // Check Out - highlight if before 5:00 PM
+            if ($highlightCheckOut) {
+                $pdf->SetTextColor(255, 0, 0); // Red color
+            }
+            $pdf->Cell(45, 10, $checkOutTime->format('H:i'), 1, 0, 'C');
+            $pdf->SetTextColor(0, 0, 0); // Reset text color to black
+
+            // Reason
+            $pdf->MultiCell(45, 10, $record->reason, 1, 'C', 0, 1);
         }
 
         // Footer with generation details

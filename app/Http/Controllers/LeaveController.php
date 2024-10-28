@@ -225,12 +225,12 @@ class LeaveController extends Controller
                             'leaves.id',
                             'leaves.user_id',
                             'leaves.leave_type', 
+                            'leaves.start_date',
                             'leaves.supervisor_approval', 
                             'leaves.management_approval', 
                             )
                     ->where('users.department', auth()->user()->department)
                     ->where('users.usertype', 'user')
-                    ->where('leaves.created_at', '>=', $thirtyDaysAgo)
                     ->orderBy('leaves.created_at', 'desc')
                     ->get();
         $manageLeavesView = View::make('components.sup-get-leave', ['leave' => $leaves])->render(); // Render the manage-leave view

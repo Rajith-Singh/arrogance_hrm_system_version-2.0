@@ -86,7 +86,7 @@
                                             <x-label for="short_leave_time" value="{{ __('Select Time Slot') }}" />
                                             <select id="short_leave_time" name="short_leave_time" class="block mt-1 w-full">
                                                 <option value="" disabled selected>Select Time Slot</option>
-                                                <option value="8:45 AM - 10:00 AM">8:45 AM - 10:00 AM</option>
+                                                <option value="8:30 AM - 10:00 AM">8:30 AM - 10:00 AM</option>
                                                 <option value="3:30 PM - 5:00 PM">3:30 PM - 5:00 PM</option>
                                             </select>
                                         </div>
@@ -106,8 +106,11 @@
                                             <x-label for="duty_leave_time" value="{{ __('Select Time Slot') }}" />
                                             <select id="duty_leave_time" name="duty_leave_time" class="block mt-1 w-full">
                                                 <option value="" disabled selected>Select Time Slot</option>
-                                                <option value="8:30 AM - 12:30 PM">8:30 AM - 12:30 PM</option>
-                                                <option value="8:30 AM - 5:00 PM">8:30 AM - 5:00 PM</option>
+                                                <option value="8:30 AM - 12:30 PM">8:30 AM - 12:30 PM - Half Day - Morning</option>
+                                                <option value="12:30 PM - 5:00 PM">12:30 PM - 5:00 PM - Half Day - Evening</option>
+                                                <option value="8:30 AM - 10:00 AM">8:30 AM - 10:00 AM - Short Leave - Morning</option>
+                                                <option value="3:30 PM - 5:00 PM">12:30 PM - 5:00 PM - Short Leave - Evening</option>
+                                                <option value="8:30 AM - 5:00 PM">8:30 AM - 5:00 PM - Full Day</option>
                                             </select>
                                         </div>
                                     </div>

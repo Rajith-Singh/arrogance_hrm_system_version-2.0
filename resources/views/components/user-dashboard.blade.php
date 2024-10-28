@@ -64,14 +64,14 @@
 </div>
     <!-- Remaining Leaves Component -->
     <div class="bg-blue-200 shadow-md rounded-lg p-6">
-        <h2 class="text-xl lg:text-2xl font-semibold text-blue-800 mb-4">Remaining Leaves</h2>
+        <h2 class="text-xl lg:text-2xl font-semibold text-blue-800 mb-4">Remaining Leave</h2>
         @if ((auth()->user()->category == 'internship') || (auth()->user()->category == 'probation'))
             <table class="table table-responsive-sm table-hover">
                 <thead class="thead-dark">
                     <tr>
                         <th>Leave Type</th>
                         <th>Leaves Taken</th>
-                        <th>Remaining Leaves</th>
+                        <th>Remaining Leave</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -96,7 +96,7 @@
                     <th>Total Allocated</th>
                     <th>Allocated per month</th>
                     <th>Leaves Taken</th>
-                    <th>Remaining Leaves</th>
+                    <th>Remaining Leave</th>
                 </tr>
             </thead>
             <tbody>

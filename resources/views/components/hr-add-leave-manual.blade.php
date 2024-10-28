@@ -72,6 +72,7 @@
                                                 <option value="Casual Leave">Casual Leave</option>
                                                 <option value="Annual Leave">Annual Leave</option>
                                                 <option value="Medical Leave">Medical Leave</option>
+                                                <option value="Study/Training Leave">Study/Training Leave</option>
                                                 <option value="Maternity/Paternity Leave">Maternity/Paternity Leave</option>
                                                 <option value="Work On Leave">Work On Leave</option>
                                                 <option value="No Pay Leave">No Pay Leave</option>

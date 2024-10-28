@@ -100,7 +100,7 @@
                 <th>Date</th>
                 <th>Check In</th>
                 <th>Check Out</th>
-                <th>Verify Code</th>
+                <th>Reason</th>
             </tr>
         </thead>
         <tbody>
