@@ -7,6 +7,8 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\CertificateController;
+
 
 // Public route, accessible without login
 Route::get('/', function () {
@@ -162,6 +164,9 @@ Route::middleware(['auth', 'role:hr'])->group(function () {
     Route::get('/add-attendance-alternative', function () {
         return view('hr.add-attendance-alternative');
     });
+    Route::get('/add-certificates', [CertificateController::class, 'create'])->name('certificates.create');
+    Route::post('/certificates', [CertificateController::class, 'store'])->name('certificates.store');
+    
     Route::post('/upload-attendance', [AttendanceController::class, 'uploadAttendance']);
     Route::get('/view-emp-attendance', function () {
         return view('hr.view-emp-attendance');
