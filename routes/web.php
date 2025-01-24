@@ -55,6 +55,10 @@ Route::middleware(['auth'])->group(function () {
         return view('view-attendance');
     });
     Route::post('/submit-reason', [AttendanceController::class, 'submitReason'])->name('submit-reason');
+    Route::get('/api/attendance', [AttendanceController::class, 'getAttendanceData'])->middleware('auth');
+    Route::get('/api/leave-data', [LeaveController::class, 'getLeaveData'])->middleware('auth');
+
+
 
 });
 

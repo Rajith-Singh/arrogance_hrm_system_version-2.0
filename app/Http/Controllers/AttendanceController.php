@@ -21,6 +21,7 @@ use App\Services\PdfService;
 use App\Services\LeavePdfService;
 use App\Services\SummaryPdfService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 
 class AttendanceController extends Controller
@@ -1021,6 +1022,34 @@ class AttendanceController extends Controller
     }
     
 
-
+    public function getAttendanceData()
+    {
+        // Get the currently authenticated user's ID
+        $userId = Auth::user()->emp_no;
+    
+        // If no authenticated user is found, return an error
+        if (!$userId) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
+    
+        // Define Monday and Friday of the current week explicitly
+        $monday = Carbon::now()->startOfWeek(); // Monday of this week
+        $friday = Carbon::now()->startOfWeek()->addDays(4); // Friday of this week
+    
+        // Fetch attendance data for the user within the date range
+        $attendances = DB::table('attendances')
+            ->where('employee_id', $userId)
+            ->whereBetween('date', [$monday->toDateString(), $friday->toDateString()]) // Ensure correct date range
+            ->orderBy('date', 'asc')
+            ->get(['date', 'check_in', 'check_out']);
+    
+        // If no attendance data is found, return an empty response
+        if ($attendances->isEmpty()) {
+            return response()->json(['message' => 'No attendance records found'], 404);
+        }
+    
+        // Return the attendance data as a JSON response
+        return response()->json($attendances);
+    }    
     
 }    

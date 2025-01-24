@@ -324,7 +324,7 @@ class LeaveController extends Controller
             'leave_id' => $request->leave_id,
             'emp_id' => $request->user_id,
         ];
-        Http::post('http://192.168.10.3:3001/notify', $data);
+        //Http::post('http://192.168.10.3:3001/notify', $data);
     
         // Notify management if the leave is approved
         if ($request->approval_status === 'Approved') {
@@ -345,7 +345,7 @@ class LeaveController extends Controller
                     'leave_id' => $request->leave_id,
                     'emp_id' => $request->user_id,
                 ];
-                Http::post('http://192.168.10.3:3001/notify', $data);
+                //Http::post('http://192.168.10.3:3001/notify', $data);
     
                 // Send email to management
                 try {
@@ -465,7 +465,7 @@ class LeaveController extends Controller
         }
     
         // Emit notification event
-        Http::post('http://192.168.10.3:3001/notify', $data);
+        //Http::post('http://192.168.10.3:3001/notify', $data);
     
         return redirect()->to('/view-leaves-mgt')->with('message', 'Leave status successfully updated!');
     }
@@ -489,6 +489,7 @@ class LeaveController extends Controller
                                 'leaves.management_note',
                             )
                             ->where('leaves.user_id', auth()->user()->id)
+                            ->orderBy('leaves.start_date', 'desc')
                             ->get();
 
 
@@ -514,6 +515,7 @@ class LeaveController extends Controller
                                 'leaves.management_note',
                             )
                             ->where('leaves.user_id', auth()->user()->id)
+                            ->orderBy('start_date', 'desc')
                             ->get();
 
 
@@ -1309,18 +1311,96 @@ class LeaveController extends Controller
     }
     
     
+    public function getLeaveData()
+    {
+        $userId = Auth::user()->id; // Get authenticated user's ID
     
+        if (!$userId) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
     
+        // Define Monday and Friday for the current week
+        $monday = Carbon::now()->startOfWeek()->toDateString(); // Monday as 'YYYY-MM-DD'
+        $friday = Carbon::now()->startOfWeek()->addDays(4)->toDateString(); // Friday as 'YYYY-MM-DD'
     
+        // Fetch leaves without considering time
+        $leaves = DB::table('leaves')
+            ->where('user_id', $userId)
+            ->where(function ($query) use ($monday, $friday) {
+                $query->whereBetween(DB::raw('DATE(start_date)'), [$monday, $friday]) // Start date within range
+                    ->orWhereBetween(DB::raw('DATE(end_date)'), [$monday, $friday]) // End date within range
+                    ->orWhere(function ($subQuery) use ($monday, $friday) {
+                        $subQuery->where(DB::raw('DATE(start_date)'), '<=', $monday) // Starts before or on Monday
+                                 ->where(DB::raw('DATE(end_date)'), '>=', $friday); // Ends after or on Friday
+                    });
+            })
+            ->get(['start_date', 'end_date', 'leave_type']);
+    
+        // Expand leave dates to individual days and types
+        $expandedLeaves = [];
+        foreach ($leaves as $leave) {
+            $currentDate = Carbon::parse($leave->start_date)->startOfDay();
+            $endDate = Carbon::parse($leave->end_date)->startOfDay();
+    
+            while ($currentDate->lte($endDate)) {
+                // Only include dates within the current week
+                if ($currentDate->between(Carbon::parse($monday), Carbon::parse($friday))) {
+                    $expandedLeaves[] = [
+                        'date' => $currentDate->toDateString(),
+                        'leave_type' => $leave->leave_type,
+                    ];
+                }
+                $currentDate->addDay();
+            }
+        }
+    
+        // Initialize days of the week with leave types and zero leave count
+        $leaveTypes = DB::table('leaves')
+            ->select('leave_type')
+            ->distinct()
+            ->pluck('leave_type')
+            ->toArray();
+    
+        $daysOfWeek = [];
+        foreach (range(0, 4) as $dayOffset) {
+            $date = Carbon::now()->startOfWeek()->addDays($dayOffset)->toDateString();
+            $daysOfWeek[$date] = [];
+            foreach ($leaveTypes as $type) {
+                $daysOfWeek[$date][$type] = 0; // Default leave count for all leave types
+            }
+        }
+    
+        // Populate leave counts for each day and type
+        foreach ($expandedLeaves as $leave) {
+            $date = $leave['date'];
+            $type = $leave['leave_type'];
+            if (isset($daysOfWeek[$date][$type])) {
+                $daysOfWeek[$date][$type]++;
+            }
+        }
+    
+        // Format data for the chart
+        $chartData = [];
+        foreach ($daysOfWeek as $date => $types) {
+            foreach ($types as $type => $count) {
+                if ($count > 0) { // Exclude leave types with zero count
+                    $chartData[] = [
+                        'date' => Carbon::parse($date)->format('l'), // Format as day name (e.g., 'Monday')
+                        'leave_type' => $type,
+                        'leave_count' => $count,
+                    ];
+                }
+            }
+        }
+    
+        return response()->json($chartData);
+    }
     
     
     
     
     
 
-
-
-    
 }
 
 
