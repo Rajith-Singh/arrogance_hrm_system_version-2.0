@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\EmployeeController;
 
 
 // Public route, accessible without login
@@ -57,6 +58,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/submit-reason', [AttendanceController::class, 'submitReason'])->name('submit-reason');
     Route::get('/api/attendance', [AttendanceController::class, 'getAttendanceData'])->middleware('auth');
     Route::get('/api/leave-data', [LeaveController::class, 'getLeaveData'])->middleware('auth');
+
+    ################
+
+    Route::get('/api/employees/total', [EmployeeController::class, 'getTotalEmployees']);
+    Route::get('/api/leaves/pending-approvals', [EmployeeController::class, 'getPendingApprovals']);
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
 
 
 
@@ -154,6 +161,23 @@ Route::middleware(['auth', 'role:management'])->group(function () {
 
     Route::post('/submit-reason-mgt', [AttendanceController::class, 'submitReasonMgt'])->name('submit-reason-mgt');
 
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    Route::get('/daily-register', [EmployeeController::class, 'showRegister'])->name('showRegister');
+    // Fetch today's register
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    ##################
+    Route::get('/daily-register', [EmployeeController::class, 'showRegister'])->name('showRegister');
+    // Fetch today's register
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    // Submit the updated register
+    Route::post('/api/register/submit', [EmployeeController::class, 'submitRegister']);
+    Route::get('/api/register/counts', [EmployeeController::class, 'getRegisterCounts']);
+
+    ################################
+
 });
 
 // HR-only routes with 'role:hr' middleware
@@ -218,6 +242,21 @@ Route::middleware(['auth', 'role:hr'])->group(function () {
     });
 
     Route::post('/submit-reason-hr', [AttendanceController::class, 'submitReasonHR'])->name('submit-reason-hr');
+
+    #############
+
+    Route::get('/daily-register', [EmployeeController::class, 'showRegister'])->name('showRegister');
+    // Fetch today's register
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    // Submit the updated register
+    Route::post('/api/register/submit', [EmployeeController::class, 'submitRegister']);
+    Route::get('/api/register/counts', [EmployeeController::class, 'getRegisterCounts']);
+
+
+
+
+    ##########################
 
 });
 

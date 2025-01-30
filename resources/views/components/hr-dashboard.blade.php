@@ -1,157 +1,445 @@
+<!-- resources/views/components/hr-dashboard.blade.php -->
+
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .sidebar {
+            height: 100vh;
+            width: 250px;
+            background: #b71c1c;
+            color: #fff;
+            position: fixed;
+        }
 
-    <title>HRM System</title>
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-    <!-- jQuery UI CSS -->
-    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-
-    <!-- jQuery and jQuery UI JS -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-
-    <!-- Styles -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
+        .content {
+            margin-left: auto;
+            padding: 20px;
+        }
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: #b71c1c;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .highlight {
+            color: #b71c1c;
+            font-weight: bold;
+        }
+        a {
+        text-decoration: none;
+        }
+    </style>
 </head>
-
+<body>
 
 
 <div class="p-6 lg:p-8 bg-white border-b border-gray-200">
-    <x-application-logo class="block h-12 w-auto" />
 
-    <h1 class="mt-8 text-2xl font-medium text-gray-900">
-        Request Leave
-    </h1>
+<div class="content">
+    <div class="header">
+        <h2>Welcome, {{ Auth::user()->name }}</h2>
+    <p>Your dashboard overview</p>
 </div>
 
-    <div>
-        <div class="py-6">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
-                    <div class="p-6">
-                        <x-validation-errors class="mb-4" />
+    <p class="mt-6 text-gray-500 leading-relaxed">
+        Welcome to the HR Management dashboard of our comprehensive Human Resources Management System. 
+        Within this platform, HR professionals like yourself have access to a plethora of tools and
+         functionalities designed to streamline and optimize HR processes effectively. As a pivotal figure
+        in our organization's personnel management, you hold the authority to configure settings, 
+        oversee user roles, and facilitate the intricate process of leave management. From standard leave allocations 
+        to handling special leave requests with meticulous attention to supervisor and management approvals,
+        this dashboard empowers you to navigate these tasks with efficiency and precision. 
+        Furthermore, you play a crucial role in managing the attendance of our workforce, ensuring accuracy 
+        and compliance with organizational policies. Your dedication to these responsibilities significantly contributes 
+        to fostering a harmonious work environment and facilitating the growth and success of our organization. 
+        Should you require any guidance or encounter queries while utilizing this platform, our dedicated 
+        support team is readily available to assist you. Thank you for your unwavering commitment to enhancing 
+        HR processes and driving organizational excellence.
+    </p>
+</div>
 
-                        <form method="POST" action="/saveHrLeave">
-                            @csrf
+<div class="row">
+            <!-- Personal Overview -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body d-flex align-items-center">
+                        <img src="{{ Auth::user()->profile_photo_url }}" alt="Profile Picture" class="rounded-circle me-3" style="object-fit: cover; border: 2px solid #e63946;" width="100px" height="100px">
+                        <div>
+                            <h5 class="card-title">{{ Auth::user()->name }}</h5>
+                            <p class="card-text">Designation: [Designation]</p>
+                            <p class="card-text">Department: {{ Auth::user()->department }}</p>
+                            <p class="card-text">Employee ID: {{ str_pad(Auth::user()->emp_no, 5, '0', STR_PAD_LEFT) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            @if(session('msg'))
-                                <div class="alert alert-success">{{session('msg')}} </div>
-                            @endif
-
-                            <div class="w-full">
-                                <x-label for="leave_type" value="{{ __('Leave Type') }}" />
-                                <select id="leave_type_select" name="leave_type" class="block mt-1 w-full">
-                                    <option value="" disabled selected>Select Leave Type</option>
-                                    <!-- Common leave options available to all users -->
-                                    <option value="Casual Leave">Casual Leave</option>
-                                    <option value="Annual Leave">Annual Leave</option>
-                                    <option value="Medical Leave">Medical Leave</option>
-                                    <option value="Maternity/Paternity Leave">Maternity/Paternity Leave</option>
-                                    <option value="Work On Leave">Work On Leave</option>
-                                    <option value="No Pay Leave">No Pay Leave</option>
-                                    <option value="Half Day">Half Day</option>
-                                    <option value="Short Leave">Short Leave</option>
-                                    <option value="Duty Leave">Duty Leave</option>
-                                    <option value="Study/Training Leave">Study/Training Leave</option>
-                                    <option value="Other">Other</option>
-                                </select>
-
-                            </div>
-
-                            <div class="mt-4" id="otherLeaveType" style="display: none;">
-                                <x-label for="other_leave_type" value="{{ __('Other Leave Type') }}" />
-                                <input type="text" id="other_leave_type" name="other_leave_type" class="block mt-1 w-full" placeholder="Enter Other Leave Type">
-                            </div>
-
-
-                            <div class="mt-4">
-                                <x-label for="start_date" value="{{ __('Start Date') }}" />
-                                <x-input id="start_date" class="block mt-1 w-full" type="text" name="start_date" :value="old('start_date')" placeholder="YYYY-MM-DD"/>
-                            </div>
-
-                            <div class="mt-4">
-                                <x-label for="end_date" value="{{ __('End Date') }}" />
-                                <x-input id="end_date" class="block mt-1 w-full" type="text" name="end_date" :value="old('end_date')" placeholder="YYYY-MM-DD" />
-                            </div>
-
-                            <div class="mt-4">
-                                <x-label for="reason" value="{{ __('Reason') }}" />
-                                <textarea id="reason" name="reason" rows="4" cols="50" class="form-textarea mt-1 block w-full">{{ old('reason') }}</textarea>
-                            </div>
-
-                            <div class="mt-4">
-                                <x-label for="additional_notes" value="{{ __('Additional Notes') }}" />
-                                <textarea id="additional_notes" name="additional_notes" rows="4" cols="50" class="form-textarea mt-1 block w-full">{{ old('additional_notes') }}</textarea>
-                            </div>
-
-                            <div class="mt-4">
-                                <x-label for="covering_person" value="{{ __('Covering Person') }}" />
-                                <select id="covering_person" name="covering_person" class="block mt-1 w-full">
-                                    <option value="" disabled selected>Select Employee</option>
-                                    @foreach($users as $data)
-                                        <option value="{{$data->id}}">{{$data->name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-
-                            <div class="flex items-center justify-end mt-4">
-                                <x-button id="submitRequestButton" class="ml-4">
-                                    {{ __('Submit Request') }}
-                                </x-button>
-                            </div>
-
-                        </form>
+        <!-- Attendance Overview -->
+                        <div class="col-md-6">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Attendance Overview</h5>
+                        <p class="card-text highlight">Today's Attendance: 8 Hours</p>
+                        <button class="btn btn-danger mt-2">Clock In</button>
                     </div>
                 </div>
             </div>
         </div>
+
+
+
+    
+        <div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-xl lg:text-2xl font-semibold text-blue-800">Leave Management Overview</h5>
+                <p>Track your leave balances and usage in a quick and visual way.</p>
+                <div class="table-responsive">
+                    @if ((auth()->user()->category == 'internship') || (auth()->user()->category == 'probation'))
+                        <table class="table table-bordered">
+                            <thead class="table-danger">
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Leaves Taken</th>
+                                    <th>Remaining Leaves</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>{{ $remainingLeaves['Leave Type'] }}</td>
+                                    <td>{{ $remainingLeaves['Leaves Taken'] }}</td>
+                                    <td class="{{ $remainingLeaves['Remaining Leaves'] == 0 ? 'text-danger' : '' }}">
+                                        {{ $remainingLeaves['Remaining Leaves'] }}
+                                    </td>
+                                    <td class="{{ $remainingLeaves['Status'] == 'No Pay' ? 'text-danger' : '' }}">
+                                        {{ $remainingLeaves['Status'] }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    @elseif (auth()->user()->category == 'permanent')
+                        <table class="table table-bordered">
+                            <thead class="table-danger">
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Total Allocated</th>
+                                    <th>Allocated Per Month</th>
+                                    <th>Leaves Taken</th>
+                                    <th>Remaining Leaves</th>
+                                    <th>Usage Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($remainingLeaves as $type => $data)
+                                    @php
+                                        $allocated = $data['Total Allocated'];
+                                        $allocatedPerMonth = $data['Allocated per month'];
+                                        $taken = $data['Leaves Taken'];
+                                        $remaining = $data['Remaining Leaves'];
+
+                                        // Special logic for short leave
+                                        if ($type === 'Short Leave') {
+                                            $usageValue = $allocatedPerMonth > 0 ? $allocatedPerMonth - $taken : 0;
+                                            $usagePercentage = $allocatedPerMonth > 0 ? round(($taken / $allocatedPerMonth) * 100) : 0;
+                                        } else {
+                                            $usageValue = $allocated > 0 ? $allocated - $taken : 0;
+                                            $usagePercentage = $allocated > 0 ? round(($taken / $allocated) * 100) : 0;
+                                        }
+
+                                        $progressBarClass = $usagePercentage >= 100 ? 'bg-danger' : 'bg-success';
+                                    @endphp
+                                    <tr>
+                                        <td>{{ $type }}</td>
+                                        <td>{{ $allocated }}</td>
+                                        <td>{{ $allocatedPerMonth }}</td>
+                                        <td>{{ $taken }}</td>
+                                        <td>{{ $remaining }}</td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar {{ $progressBarClass }}" role="progressbar"
+                                                    style="width: {{ $usagePercentage }}%;"
+                                                    aria-valuenow="{{ $usagePercentage }}" aria-valuemin="0"
+                                                    aria-valuemax="100">
+                                                    {{ $usagePercentage }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+
+                            </tbody>
+                        </table>
+                    @elseif (auth()->user()->category == 'probation')
+                        <table class="table table-bordered">
+                            <thead class="table-danger">
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Total Allocated</th>
+                                    <th>Allocated Per Month</th>
+                                    <th>Leaves Taken</th>
+                                    <th>Remaining Leaves</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($remainingLeaves as $type => $data)
+                                    @php
+                                        $allocated = $data['Total Allocated'];
+                                        $taken = $data['Leaves Taken'];
+                                        $rowClass = $allocated <= $taken ? 'text-danger' : '';
+                                    @endphp
+                                    <tr class="{{ $rowClass }}">
+                                        <td>{{ $type }}</td>
+                                        <td>{{ $allocated }}</td>
+                                        <td>{{ $data['Allocated per month'] }}</td>
+                                        <td>{{ $taken }}</td>
+                                        <td>{{ $data['Remaining Leaves'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 
-    @stack('modals')
 
-    @livewireScripts
+        <!-- Charts -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Attendance Trends (Current Week)</h5>
+                        <div class="chart-container">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Leave Behavior (Current Week)</h5>
+                        <div class="chart-container">
+                            <canvas id="leaveChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <script>
-        document.getElementById('leave_type_select').addEventListener('change', function() {
-            var selectedValue = this.value;
-            if (selectedValue === 'Other') {
-                document.getElementById('otherLeaveType').style.display = 'block';
-            } else {
-                document.getElementById('otherLeaveType').style.display = 'none';
-            }
-        });
 
-        // Initialize date picker
-        $(function() {
-            function isHolidayOrWeekend(date) {
-                var day = date.getDay();
-                var dateString = $.datepicker.formatDate('yy-mm-dd', date);
-                return (day === 0 || day === 6 || holidays.includes(dateString));
-            }
+<script>
+    // Get the authenticated user's ID dynamically from the backend
+    const userId = {{ Auth::user()->emp_no }};
 
-            var holidays = @json(\App\Models\Holiday::pluck('holiday_date')->toArray());
-
-            $('#start_date, #end_date').datepicker({
-                dateFormat: 'yy-mm-dd',
-                minDate: 0, // Ensures today and future dates are selectable
-                beforeShowDay: function(date) {
-                    return [!isHolidayOrWeekend(date), ''];
-                }
+    async function fetchAttendanceData() {
+        try {
+            // Fetch attendance data from the backend
+            const response = await fetch(`/api/attendance?user_id=${userId}`, {
+                method: 'GET',
+                credentials: 'include', // Include credentials for session authentication
             });
-        });
-    </script>
-</body>
-</html>
 
+            if (!response.ok) {
+                throw new Error('Failed to fetch attendance data');
+            }
 
+            const attendanceData = await response.json();
 
+            // Process attendance data for the chart
+            const labels = attendanceData.map(item =>
+                new Date(item.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: 'short',
+                })
+            );
+
+            const checkInTimes = attendanceData.map(item => {
+                const [hours, minutes] = item.check_in.split(':');
+                return parseFloat(hours) + parseFloat(minutes) / 60; // Convert HH:mm to decimal hours
+            });
+
+            const checkOutTimes = attendanceData.map(item => {
+                const [hours, minutes] = item.check_out.split(':');
+                return parseFloat(hours) + parseFloat(minutes) / 60; // Convert HH:mm to decimal hours
+            });
+
+            // Render the attendance chart
+            const ctx = document.getElementById('attendanceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Check-In Time',
+                            data: checkInTimes,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                        },
+                        {
+                            label: 'Check-Out Time',
+                            data: checkOutTimes,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                        },
+                    ],
+                },
+                options: {
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Time (Hours)',
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                callback: value => `${Math.floor(value)}:${(value % 1) * 60}`, // Convert decimal hours to HH:mm
+                            },
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date',
+                            },
+                        },
+                    },
+                },
+            });
+        } catch (error) {
+            console.error('Error fetching attendance data:', error);
+        }
+    }
+
+    // Fetch and render attendance data when the page loads
+    fetchAttendanceData();
+</script>
+
+<script>
+    async function fetchLeaveData() {
+        try {
+            // Fetch leave data from the backend
+            const response = await fetch('/api/leave-data', {
+                method: 'GET',
+                credentials: 'include', // Include credentials for session authentication
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch leave data');
+            }
+
+            const leaveData = await response.json();
+
+            // Days of the week (Monday to Friday) for the X-axis
+            const labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+            // Get all unique leave types from the data
+            const leaveTypes = [...new Set(leaveData.map(item => item.leave_type))];
+
+            // Initialize datasets for each leave type with zero values
+            const datasets = leaveTypes.map(type => {
+                const data = labels.map(day => {
+                    const dayLeave = leaveData.find(item => item.date === day && item.leave_type === type);
+                    return dayLeave ? dayLeave.leave_count : 0; // Default to 0 if no leave for this type on the day
+                });
+
+                return {
+                    label: type, // Label for the leave type
+                    data: data,
+                    backgroundColor: getRandomColor(), // Random color for each leave type
+                };
+            });
+
+            // Function to generate random colors for each leave type
+            function getRandomColor() {
+                const r = Math.floor(Math.random() * 255);
+                const g = Math.floor(Math.random() * 255);
+                const b = Math.floor(Math.random() * 255);
+                return `rgba(${r}, ${g}, ${b}, 0.7)`;
+            }
+
+            // Render the leave chart
+            const ctx = document.getElementById('leaveChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels, // Days of the week (X-axis)
+                    datasets: datasets, // Leave type datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.dataset.label}: ${context.raw}`;
+                                },
+                            },
+                        },
+                        legend: {
+                            position: 'top', // Show legend for leave types
+                        },
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Days of the Week',
+                            },
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Number of Leaves',
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                            },
+                        },
+                        x: {
+                            stacked: true, // Enable stacked bar chart on X-axis
+                        },
+                        y: {
+                            stacked: true, // Enable stacked bar chart on Y-axis
+                        },
+                    },
+                },
+            });
+        } catch (error) {
+            console.error('Error fetching leave data:', error);
+        }
+    }
+
+    // Fetch and render leave data when the page loads
+    fetchLeaveData();
+</script>

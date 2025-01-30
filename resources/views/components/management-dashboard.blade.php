@@ -105,7 +105,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title">Total Employees</h5>
-                        <p class="highlight">500</p>
+                        <p class="highlight" id="totalEmployees">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -113,7 +113,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title">Active Employees</h5>
-                        <p class="highlight">450</p>
+                        <p class="highlight" id="activeEmployees">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -121,7 +121,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title">On Leave</h5>
-                        <p class="highlight">25</p>
+                        <p class="highlight" id="onLeaveEmployees">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -129,7 +129,7 @@
                 <div class="card text-center">
                     <div class="card-body">
                         <h5 class="card-title">Pending Approvals</h5>
-                        <p class="highlight">15</p>
+                        <p class="highlight" id="pendingApprovals">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -354,4 +354,88 @@
             data: skillGapsData,
             options: { responsive: true }
         });
+
+
+    // Fetch the employee count from the API
+    fetch('/api/employees/total')
+        .then(response => response.json())
+        .then(data => {
+            // Correctly access the JSON key "total_employees"
+            document.getElementById('totalEmployees').innerText = data.total_employees;
+        })
+        .catch(error => {
+            console.error('Error fetching employee count:', error);
+            document.getElementById('totalEmployees').innerText = 'Error';
+        });
+
+        // Fetch the pending approvals count from the API
+        fetch('/api/leaves/pending-approvals')
+            .then(response => response.json())
+            .then(data => {
+                // Display the count in the UI
+                document.getElementById('pendingApprovals').innerText = data.pending_approvals;
+            })
+            .catch(error => {
+                console.error('Error fetching pending approvals:', error);
+                document.getElementById('pendingApprovals').innerText = 'Error';
+            });
+
+
+        // Fetch the pending approvals count from the API
+        fetch('/api/register/today')
+            .then(response => response.json())
+            .then(data => {
+                // Display the count in the UI
+                document.getElementById('activeEmployees').innerText = data.activeCount;
+            })
+            .catch(error => {
+                console.error('Error fetching pending approvals:', error);
+                document.getElementById('activeEmployees').innerText = 'Error';
+            });
+
+
+        // Fetch the active employees count from the API
+        // fetch('/api/register/today')
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         // Display the count in the UI
+        //         document.getElementById('activeEmployees').innerText = data.activeCount;
+        //     })
+        //     .catch(error => {
+        //         console.error('Error fetching pending approvals:', error);
+        //         document.getElementById('activeEmployees').innerText = 'Error';
+        //     });
+
+
+
+
+
+
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Define the API URL
+        const apiUrl = "http://127.0.0.1:8000/api/register/today";
+
+        // Fetch data from the API
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Extract the count of employees on leave
+                const totalEmployees = data.count || 0; // Total number of employees
+                const activeCount = data.activeCount || 0; // Employees currently active
+                const onLeaveCount = totalEmployees - activeCount; // Calculate "on leave"
+
+                // Update the DOM with the calculated on-leave count
+                document.getElementById("onLeaveEmployees").textContent = activeCount;
+            })
+            .catch(error => {
+                console.error("Error fetching data:", error);
+                // Fallback in case of an error
+                document.getElementById("onLeaveEmployees").textContent = "Error!";
+            });
+    });
+
+
+
     </script>
+    
