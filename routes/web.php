@@ -76,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/documents', [EmployeeDocumentController::class, 'store'])->name('documents.store');
     Route::get('/documents/{document}/download', [EmployeeDocumentController::class, 'download'])->name('documents.download');
     Route::delete('/documents/{document}', [EmployeeDocumentController::class, 'destroy'])->name('documents.destroy');
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
 
 
 
@@ -173,6 +174,23 @@ Route::middleware(['auth', 'role:management'])->group(function () {
 
     Route::post('/submit-reason-mgt', [AttendanceController::class, 'submitReasonMgt'])->name('submit-reason-mgt');
 
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    Route::get('/daily-register', [EmployeeController::class, 'showRegister'])->name('showRegister');
+    // Fetch today's register
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    ##################
+    Route::get('/daily-register', [EmployeeController::class, 'showRegister'])->name('showRegister');
+    // Fetch today's register
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    // Submit the updated register
+    Route::post('/api/register/submit', [EmployeeController::class, 'submitRegister']);
+    Route::get('/api/register/counts', [EmployeeController::class, 'getRegisterCounts']);
+
+    ################################
+
 });
 
 // HR-only routes with 'role:hr' middleware
@@ -260,6 +278,8 @@ Route::middleware(['auth', 'role:hr'])->group(function () {
     Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     
+
+
     ##########################
 
 });
