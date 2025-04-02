@@ -26,8 +26,16 @@
         <div class="p-4 pt-5">
           <img class="img logo rounded-circle mb-5" src="{{ Auth::user()->profile_photo_url }}" alt="{{ Auth::user()->name }}" />
           <ul class="list-unstyled components mb-5">
-            <li>
+            <li class="{{ Request::is('home') ? 'active' : '' }}">
               <a href="/home">HR Dashboard</a>
+            </li>
+            <li>
+              <a href="#" class="main-category" data-category="salary-management">Employee Management <i class="fa fa-chevron-down expand-icon"></i></a>
+              <ul class="submenu" id="salary-management-submenu">
+                <li class="{{ Request::is('users') ? 'active' : '' }}">
+                  <a href="/users">Employee Details</a>
+                </li>
+              </ul>
             </li>
             <li>
               <a href="#" class="main-category" data-category="leave-management">Leave Management <i class="fa fa-chevron-down expand-icon"></i></a>
@@ -40,6 +48,9 @@
                 </li>
                 <li class="{{ Request::is('add-manual-attendance') ? 'active' : '' }}">
                   <a href="/add-manual-attendance">Add Attendance (Manual)</a>
+                </li>
+                <li class="{{ Request::is('monitor-attendance') ? 'active' : '' }}">
+                  <a href="/monitor-attendance">Remote Attendance</a>
                 </li>
                 <li class="{{ Request::is('add-manual-leave') ? 'active' : '' }}">
                   <a href="/add-manual-leave">Add Leave (Manual)</a>
@@ -101,6 +112,13 @@
           </div>
         </div>
       </nav>
+      
+      <div id="content" class="p-0 p-md-0">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Toggle Menu</span>
+        </button>
+      
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script>
@@ -129,4 +147,8 @@
         });
       });
     </script>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/popper.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/main.js"></script>
 

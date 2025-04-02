@@ -78,6 +78,7 @@
                                                 <option value="No Pay Leave">No Pay Leave</option>
                                                 <option value="Half Day">Half Day</option>
                                                 <option value="Short Leave">Short Leave</option>
+                                                <option value="Duty Leave">Duty Leave</option>
                                                 <option value="Other">Other</option>
                                             @endif
                                         </select>

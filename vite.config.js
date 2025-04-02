@@ -12,7 +12,7 @@ export default defineConfig({
     host: '0.0.0.0', // Bind to all network interfaces
     port: 5000, // Vite server port
     hmr: {
-      host: '192.168.10.3', // Ensure this matches your actual IP
+      host: '127.0.0.1', // Ensure this matches your actual IP
       port: 3001, // Port for HMR notifications
     }
   },

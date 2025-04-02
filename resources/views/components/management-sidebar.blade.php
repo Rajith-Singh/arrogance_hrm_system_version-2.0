@@ -31,7 +31,7 @@
 	          </li>
 
 	          <li class="{{ Request::is('view-leaves-mgt') ? 'active' : '' }}">
-              <a href="/view-leaves-mgt">Manage Employer Leave</a>
+              <a href="/view-leaves-mgt">Manage Employee Leave</a>
 	          </li>
 
             <li class="{{ Request::is('view-employee-attendance') ? 'active' : '' }}">

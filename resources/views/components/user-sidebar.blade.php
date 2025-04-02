@@ -17,7 +17,7 @@
 				<div class="p-4 pt-5">
                   <img class="img logo rounded-circle mb-5" src="{{ Auth::user()->profile_photo_url }}" alt="{{ Auth::user()->name }}" />
 	        <ul class="list-unstyled components mb-5">
-              <li class="{{ Request::is('dashboard') ? 'active' : '' }}">
+              <li class="{{ Request::is('home') ? 'active' : '' }}">
                     <a href="/home">User Dashboard</a>
                 </li>
                 <li class="{{ Request::is('request-leave') ? 'active' : '' }}">

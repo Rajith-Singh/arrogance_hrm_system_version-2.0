@@ -17,10 +17,107 @@
     <!-- jQuery and jQuery UI JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    
+    <!-- Add SweetAlert CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Styles -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    
+    <style>
+        /* Enhanced disabled option styling */
+        .disabled-option {
+            color: #d33f49;
+            background-color: #f7fafc;
+            position: relative;
+            padding-left: 28px;
+            font-style: italic;
+        }
+        
+        /* Tooltip container */
+        .option-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        /* Beautiful tooltip */
+        .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background-color: #5e4b8b;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        /* Tooltip arrow */
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #2d3748 transparent transparent transparent;
+        }
+        
+        /* Show tooltip on hover */
+        .disabled-option:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Lock icon styling */
+        .lock-icon {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a0aec0;
+            font-size: 14px;
+        }
+        
+        /* Select dropdown styling */
+        select {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 10px 15px;
+        }
+        
+        select:focus {
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+            outline: none;
+        }
+        
+        /* Animation for alert */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+    </style>
 </head>
 <body class="font-sans antialiased">
     <div class="min-h-screen bg-gray-100">
@@ -79,6 +176,7 @@
                                         </select>
                                     </div>
 
+                                    <!-- Rest of your form remains the same -->
                                     <!-- Time selection slots -->
                                     <div class="mt-4" id="timeSelection" style="display: none;">
                                         <!-- Time selection for Short Leave -->
@@ -221,6 +319,81 @@
                 }
             });
         });
+        
+        
+        document.addEventListener('DOMContentLoaded', function() {
+        const leaveTypeSelect = document.getElementById('leave_type_select');
+        const submitButton = document.getElementById('submitRequestButton');
+        
+        // Check if user has 0 Annual Leaves (you'll need to pass this from backend)
+        const hasZeroAnnualLeaves = {{ auth()->user()->category == 'permanent' && 
+                                    auth()->user()->sub_category == 'fresh' && 
+                                    auth()->user()->permanent_date && 
+                                    (new DateTime(auth()->user()->permanent_date))->format('Y') == date('Y') ? 'true' : 'false' }};
+        
+        // Function to show sweetalert popup
+        function showAnnualLeaveBlockedPopup() {
+            Swal.fire({
+                title: 'Annual Leave Not Available',
+                html: `
+                    <div class="text-left">
+                        <p>You cannot request Annual Leave because:</p>
+                        <ul class="list-disc pl-5 mt-2">
+                            <li>You are a fresh permanent employee</li>
+                            <li>This is your first year (joining year)</li>
+                        </ul>
+                        <p class="mt-3">You will be eligible for Annual Leaves starting from next year.</p>
+                    </div>
+                `,
+                icon: 'warning',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#b71c1c'
+            });
+        }
+        
+        // Disable Annual Leave option if user has 0 leaves
+        if (hasZeroAnnualLeaves) {
+            const annualLeaveOption = Array.from(leaveTypeSelect.options).find(opt => opt.value === 'Annual Leave');
+            if (annualLeaveOption) {
+                annualLeaveOption.disabled = true;
+                annualLeaveOption.classList.add('disabled-option');
+                
+                // Add tooltip
+                const tooltip = document.createElement('span');
+                tooltip.className = 'tooltip-text';
+                tooltip.textContent = '      -     Not available for fresh permanent employees in first year';
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'option-wrapper';
+                wrapper.innerHTML = '<i class="fas fa-lock lock-icon"></i>' + annualLeaveOption.text;
+                wrapper.appendChild(tooltip);
+                
+                annualLeaveOption.text = '';
+                annualLeaveOption.appendChild(wrapper);
+            }
+        }
+        
+        // Prevent form submission if trying to request Annual Leave with 0 leaves
+        submitButton.addEventListener('click', function(e) {
+            if (hasZeroAnnualLeaves && leaveTypeSelect.value === 'Annual Leave') {
+                e.preventDefault();
+                showAnnualLeaveBlockedPopup();
+                leaveTypeSelect.classList.add('shake');
+                setTimeout(() => {
+                    leaveTypeSelect.classList.remove('shake');
+                }, 500);
+            }
+        });
+        
+        // Also prevent selection through keyboard navigation
+        leaveTypeSelect.addEventListener('keydown', function(e) {
+            if (hasZeroAnnualLeaves && e.key === 'Enter' && leaveTypeSelect.value === 'Annual Leave') {
+                e.preventDefault();
+                showAnnualLeaveBlockedPopup();
+            }
+        });
+    });
+
     </script>
 </body>
 </html>

@@ -8,6 +8,12 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\RemoteAttendanceController;
+use App\Http\Controllers\EmployeeDocumentController;
+use App\Http\Controllers\UserController;
+
+
 
 
 // Public route, accessible without login
@@ -55,6 +61,23 @@ Route::middleware(['auth'])->group(function () {
         return view('view-attendance');
     });
     Route::post('/submit-reason', [AttendanceController::class, 'submitReason'])->name('submit-reason');
+    Route::get('/api/attendance', [AttendanceController::class, 'getAttendanceData'])->middleware('auth');
+    Route::get('/api/leave-data', [LeaveController::class, 'getLeaveData'])->middleware('auth');
+
+    ################
+
+    Route::get('/api/employees/total', [EmployeeController::class, 'getTotalEmployees']);
+    Route::get('/api/leaves/pending-approvals', [EmployeeController::class, 'getPendingApprovals']);
+
+    Route::get('/api/holidays', [LeaveController::class, 'getHoliday']);
+    
+    ##Document Management
+    Route::get('/add-documents', [EmployeeDocumentController::class, 'index'])->name('documents.index');
+    Route::post('/documents', [EmployeeDocumentController::class, 'store'])->name('documents.store');
+    Route::get('/documents/{document}/download', [EmployeeDocumentController::class, 'download'])->name('documents.download');
+    Route::delete('/documents/{document}', [EmployeeDocumentController::class, 'destroy'])->name('documents.destroy');
+
+
 
 });
 
@@ -136,11 +159,11 @@ Route::middleware(['auth', 'role:management'])->group(function () {
 
     Route::get('/employee-search', [AttendanceController::class, 'searchEmployees']);
 
-    Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
+    // Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
 
-    Route::get('/supportMgt', function () {
-        return view('management.support-desk');
-    });
+    // Route::get('/supportMgt', function () {
+    //     return view('management.support-desk');
+    // });
 
     Route::get('/attendance-tracking-mgt', [AttendanceController::class, 'checkAttendanceMgt']);
 
@@ -214,6 +237,30 @@ Route::middleware(['auth', 'role:hr'])->group(function () {
     });
 
     Route::post('/submit-reason-hr', [AttendanceController::class, 'submitReasonHR'])->name('submit-reason-hr');
+
+    #############
+
+    Route::get('/daily-register', [EmployeeController::class, 'showRegister'])->name('showRegister');
+    // Fetch today's register
+    Route::get('/api/register/today', [EmployeeController::class, 'getTodayRegister']);
+
+    // Submit the updated register
+    Route::post('/api/register/submit', [EmployeeController::class, 'submitRegister']);
+    Route::get('/api/register/counts', [EmployeeController::class, 'getRegisterCounts']);
+
+
+    ####Remote attendance
+    
+    Route::get('/monitor-attendance', [RemoteAttendanceController::class, 'index'])->name('attendance.monitor');
+
+    
+    //User management
+    
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    
+    ##########################
 
 });
 

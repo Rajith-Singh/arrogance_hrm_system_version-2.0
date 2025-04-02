@@ -17,6 +17,15 @@
 
         <!-- jQuery UI CSS -->
         <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+        
+        <!-- Bootstrap CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+        <!-- Leaflet CSS (for maps) -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+        <!-- Your custom styles (if any) -->
+        <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -79,6 +88,18 @@
             updateNotificationCount();
         });
     </script>
+
+    <!-- Add the Chatbot Component -->
+    <!--<x-chat-bot />-->
+    
+        <!-- Bootstrap JS (includes Popper.js for modal functionality) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Leaflet JS (for maps) -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- Your custom JS (if any) -->
+    <script src="{{ asset('js/app.js') }}"></script>
 
     </body>
 </html>

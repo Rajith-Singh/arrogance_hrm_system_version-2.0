@@ -21,6 +21,7 @@ use App\Services\PdfService;
 use App\Services\LeavePdfService;
 use App\Services\SummaryPdfService;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 
 class AttendanceController extends Controller
@@ -474,9 +475,9 @@ class AttendanceController extends Controller
         $lateStartTime = Carbon::createFromTime(8, 31);
         $lateEndTime = Carbon::createFromTime(8, 46);
         $halfDayTime = Carbon::createFromTime(12, 30);
-        $morningCutoffTime = Carbon::createFromTime(10, 0); // After 10:00 AM, apply half-day rules
+        $morningCutoffTime = Carbon::createFromTime(10, 1); // After 10:00 AM, apply half-day rules
         $shortLeaveStartMorning = Carbon::createFromTime(8, 45);
-        $shortLeaveEndMorning = Carbon::createFromTime(10, 01);
+        $shortLeaveEndMorning = Carbon::createFromTime(10, 1);
         $shortLeaveStartEvening = Carbon::createFromTime(15, 30);
         $shortLeaveEndEvening = Carbon::createFromTime(17, 0);
         $officeEndTime = Carbon::createFromTime(17, 0); // End of the office day (5:00 PM)
@@ -1021,6 +1022,34 @@ class AttendanceController extends Controller
     }
     
 
+    public function getAttendanceData()
+    {
+        // Get the currently authenticated user's ID
+        $userId = Auth::user()->emp_no;
 
+        // If no authenticated user is found, return an error
+        if (!$userId) {
+            return response()->json(['message' => 'User not authenticated'], 401);
+        }
+
+        // Define the current week's Monday and Friday
+        $monday = Carbon::now()->startOfWeek(); // Start of the week (Monday)
+        $friday = Carbon::now()->endOfWeek()->subDays(2); // End of Friday
+
+        // Fetch attendance data for the user within the date range
+        $attendances = DB::table('attendances')
+            ->where('employee_id', $userId)
+            ->whereBetween('date', [$monday, $friday]) // Filter by current week
+            ->orderBy('date', 'asc')
+            ->get(['date', 'real_check_in', 'real_check_out']);
+
+        // If no attendance data is found, return an empty response
+        if ($attendances->isEmpty()) {
+            return response()->json(['message' => 'No attendance records found'], 404);
+        }
+
+        // Return the attendance data as a JSON response
+        return response()->json($attendances);
+    }
     
 }    
