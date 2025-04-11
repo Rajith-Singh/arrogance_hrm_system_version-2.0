@@ -41,7 +41,7 @@ class HomeController extends Controller
 
             // Return the dashboard view with both leaves and remaining leaves data
             return view('dashboard', $userData);
-        } else if (Auth::user()->usertype === 'hr' || Auth::user()->usertype === 'supervisor') {
+        } else if (Auth::user()->usertype === 'hr' || Auth::user()->usertype === 'supervisor' || Auth::user()->usertype === 'supervisor-in-chief') {
             $remainingLeaves = $this->leaveController->getRemainingLeaves(request());
             $userData['remainingLeaves'] = $remainingLeaves;
 
@@ -68,6 +68,8 @@ class HomeController extends Controller
                 return 'admin.home';
             case 'supervisor':
                 return 'supervisor.home';
+            case 'supervisor-in-chief':
+                return 'supervisor-in-chief.home';
             case 'management':
                 return 'management.home';
             case 'hr':

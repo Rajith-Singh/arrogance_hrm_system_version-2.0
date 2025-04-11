@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\LeaveRequestMail;
 use App\Mail\ManagementApprovalMail;
+use App\Mail\SupervisorInChiefApprovalMail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
@@ -109,6 +110,7 @@ class LeaveController extends Controller
             Mail::to($supervisor->email)->send(new LeaveRequestMail($leave));
         }
     
+        
         return back()->with('msg', 'Your leave request has been successfully processed.');
     }
     
@@ -188,7 +190,6 @@ class LeaveController extends Controller
         // Update the leave record
         DB::table('leaves')->where('id', $request->id)->update([
             'leave_type' => $leaveType,
-            'other_leave_type' => $request->leave_type === 'Other' ? $request->other_leave_type : null,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'reason' => $request->reason,
@@ -203,6 +204,8 @@ class LeaveController extends Controller
             return redirect()->to('/manage-leave')->with('message', 'Leave successfully updated!');
         } else if (auth()->user()->usertype == 'supervisor') {
             return redirect()->to('/manage-supervisor-leave')->with('message', 'Leave successfully updated!');
+        } else if (auth()->user()->usertype == 'supervisor-in-chief') {
+            return redirect()->to('/manage-supervisor-ic-leave')->with('message', 'Leave successfully updated!');
         } else if (auth()->user()->usertype == 'management') {
             return redirect()->to('/manage-management-leave')->with('message', 'Leave successfully updated!');
         } else if (auth()->user()->usertype == 'admin') {
@@ -228,6 +231,7 @@ class LeaveController extends Controller
                             'leaves.leave_type', 
                             'leaves.start_date',
                             'leaves.supervisor_approval', 
+                            'leaves.supervisor_in_chief_approval',
                             'leaves.management_approval', 
                             )
                     ->where('users.department', auth()->user()->department)
@@ -325,32 +329,39 @@ class LeaveController extends Controller
             'leave_id' => $request->leave_id,
             'emp_id' => $request->user_id,
         ];
+
+        //dd($status_message);
         //Http::post('http://192.168.10.3:3001/notify', $data);
+
+        
     
-        // Notify management if the leave is approved
+        // Notify supervisor_in_chief if the leave is approved
         if ($request->approval_status === 'Approved') {
-            $management_users = User::where('usertype', 'management')->get();
-            foreach ($management_users as $manager) {
-                $management_message = "Leave request from $user->name has been approved by $supervisor_name and requires your review.";
+            
+            $supervisor_in_chief_users = User::where('usertype', 'supervisor-in-chief')
+                                            ->where('main_department', auth()->user()->main_department)
+                                            ->get();
+            foreach ($supervisor_in_chief_users as $supervisor_in_chief) {
+                $supervisor_in_chief_message = "Leave request from $user->name has been approved by $supervisor_name and requires your review.";
                 Notification::create([
-                    'user_id' => $manager->id,
-                    'message' => $management_message,
+                    'user_id' => $supervisor_in_chief->id,
+                    'message' => $supervisor_in_chief_message,
                     'leave_id' => $request->leave_id,
                     'emp_id' => $request->user_id,
                 ]);
+
     
-                // Emit notification event for management
+                // Emit notification event for supervisor_in_chief
                 $data = [
-                    'user_id' => $manager->id,
-                    'message' => $management_message,
+                    'user_id' => $supervisor_in_chief->id,
+                    'message' => $supervisor_in_chief_message,
                     'leave_id' => $request->leave_id,
                     'emp_id' => $request->user_id,
                 ];
-                //Http::post('http://192.168.10.3:3001/notify', $data);
     
-                // Send email to management
+                // Send email to supervisor_in_chief
                 try {
-                    Mail::to($manager->email)->send(new ManagementApprovalMail($leave, $supervisor_name));
+                    Mail::to($supervisor_in_chief->email)->send(new SupervisorInChiefApprovalMail($leave, $supervisor_name));
                 } catch (\Exception $e) {
                     Log::error('Failed to send email to management: ' . $e->getMessage());
                 }
@@ -361,6 +372,123 @@ class LeaveController extends Controller
     }
     
 
+
+    ///Supervisor-in-Chief functions
+
+    public function viewEmpLeaveSic(Request $request) {
+        $thirtyDaysAgo = \Carbon\Carbon::now()->subDays(30);
+
+        $leaves = Leave::join('users', 'users.id', '=', 'leaves.user_id')
+                    ->select('users.name',
+                            'users.department',
+                            'users.main_department',
+                            'leaves.id',
+                            'leaves.user_id',
+                            'leaves.leave_type', 
+                            'leaves.start_date',
+                            'leaves.supervisor_approval', 
+                            'leaves.supervisor_in_chief_approval', 
+                            )
+                    ->where('users.main_department', auth()->user()->main_department)
+                    ->where('users.usertype', 'user')
+                    ->where('supervisor_approval', 'Approved')
+                    ->orderBy('leaves.created_at', 'desc')
+                    ->get();
+        $manageLeavesView = View::make('components.sic-get-leave', ['leave' => $leaves])->render(); // Render the manage-leave view
+        return view('supervisor-in-chief.sic-manage-leave', ['manageLeavesView' => $manageLeavesView]);
+
+    }
+
+    public function viewSicLeaveRequest($user_id, $leave_id)
+    {
+        $data = Leave::join('users', 'users.id', '=', 'leaves.user_id')
+            ->select(
+                'users.name',
+                'leaves.id',
+                'leaves.user_id',
+                'leaves.leave_type',
+                'leaves.start_date',
+                'leaves.end_date',
+                'leaves.reason',
+                'leaves.additional_notes'
+            )
+            ->where('leaves.user_id', $user_id)
+            ->where('leaves.id', $leave_id)
+            ->first();
+
+        $leaveHistory = Leave::select('leave_type', \DB::raw('count(*) as total'))
+            ->where('user_id', $user_id)
+            ->groupBy('leave_type')
+            ->get();
+
+        $LeaveView = view('components.sic-leave-view', compact('data', 'leaveHistory'))->render();
+        return view('supervisor-in-chief.sic-emp-leave-view', ['LeaveView' => $LeaveView]);
+    }
+
+
+    public function updateSICApproval(Request $request)
+    {
+        DB::table('leaves')->where('id', $request->leave_id)
+                        ->where('user_id', $request->user_id)
+                        ->update([
+                            'supervisor_in_chief_approval' => $request->approval_status,
+                            'supervisor_in_chief_note' => $request->supervisor_in_chief_note,    
+                        ]);
+    
+        $user = User::find($request->user_id);
+        $sic_name = auth()->user()->name;
+        $sic_id = auth()->user()->id;
+        $status_message = $request->approval_status === 'Approved' 
+                          ? "approved" 
+                          : "rejected";
+        $message = "Your leave request has been $status_message by $sic_name.";
+
+        // Mark the original notification as read
+        Notification::where('leave_id', $request->leave_id)
+                    ->where('emp_id', $request->user_id)
+                    ->update(['read' => 1]);
+    
+        // Save the notification to the database
+        Notification::create([
+            'user_id' => $user->id,
+            'message' => $message,
+            'leave_id' => $request->leave_id,
+            'emp_id' => $request->user_id,
+
+        ]);
+    
+        $data = [
+            'user_id' => $user->id,
+            'message' => $message,
+            'leave_id' => $request->leave_id,
+            'emp_id' => $request->user_id,
+
+        ];
+
+        // Create a specific message for HR
+        $hrMessage = "$sic_name has $status_message the leave request of $user->name.";        
+
+        // Get all HR users (assuming they have a role 'HR')
+        $hrUsers = User::where('usertype', 'hr')->get();
+
+        foreach ($hrUsers as $hrUser) {
+            Notification::create([
+                'user_id' => $hrUser->id,
+                'message' => $hrMessage,
+                'leave_id' => $request->leave_id,
+                'emp_id' => $request->user_id,
+    
+            ]);
+        }
+    
+        // Emit notification event
+        //Http::post('http://192.168.10.3:3001/notify', $data);
+    
+        return redirect()->to('/view-leaves-sic')->with('message', 'Leave status successfully updated!');
+    }
+
+
+    ///Management Functions
 
     public function viewEmpLeaveMgt(Request $request) {
         $thirtyDaysAgo = \Carbon\Carbon::now()->subDays(30);
@@ -486,8 +614,8 @@ class LeaveController extends Controller
                                 'leaves.additional_notes',
                                 'leaves.supervisor_approval',
                                 'leaves.supervisor_note',
-                                'leaves.management_approval',
-                                'leaves.management_note',
+                                'leaves.supervisor_in_chief_approval',
+                                'leaves.supervisor_in_chief_note',
                             )
                             ->where('leaves.user_id', auth()->user()->id)
                             ->orderBy('leaves.start_date', 'desc')
@@ -512,8 +640,8 @@ class LeaveController extends Controller
                                 'leaves.additional_notes',
                                 'leaves.supervisor_approval',
                                 'leaves.supervisor_note',
-                                'leaves.management_approval',
-                                'leaves.management_note',
+                                'leaves.supervisor_in_chief_approval',
+                                'leaves.supervisor_in_chief_note',
                             )
                             ->where('leaves.user_id', auth()->user()->id)
                             ->orderBy('leaves.start_date', 'desc')
@@ -557,6 +685,7 @@ class LeaveController extends Controller
     {
         $userId = auth()->user()->id;
         $userCategory = trim(strtolower(auth()->user()->category));
+        $userType = auth()->user()->usertype;
 
         // Special handling for interns and probation employees
         if ($userCategory === 'internship' || $userCategory === 'probation') {
@@ -584,7 +713,7 @@ class LeaveController extends Controller
         }
 
         // Fetch and calculate leaves taken and approved for the current year
-        $leavesTaken = Leave::select(
+        $leavesTakenQuery = Leave::select(
             'leave_type', 
             DB::raw('SUM(DATEDIFF(end_date, start_date) + 1) as days_taken'),
             DB::raw('YEAR(start_date) as year'), 
@@ -592,20 +721,34 @@ class LeaveController extends Controller
         )
         ->where('user_id', $userId)
         ->whereBetween('start_date', [$yearStart, $yearEnd])
-        ->whereBetween('end_date', [$yearStart, $yearEnd])
-        ->where('management_approval', 'Approved')
-        ->where('supervisor_approval', 'Approved')
-        ->groupBy('year', 'month', 'leave_type')
+        ->whereBetween('end_date', [$yearStart, $yearEnd]);
+
+        // Apply the approval conditions based on the user type
+        if ($userType === 'supervisor_in_chief') {
+            $leavesTakenQuery->where('management_approval', 'Approved');
+        } else {
+            $leavesTakenQuery->where('supervisor_approval', 'Approved')
+                            ->where('supervisor_in_chief_approval', 'Approved');
+        }
+
+        $leavesTaken = $leavesTakenQuery->groupBy('year', 'month', 'leave_type')
         ->get();
 
         // Calculate the total half-day leaves taken and their impact on casual leaves
         $totalHalfDaysTaken = Leave::where('user_id', $userId)
             ->whereBetween('start_date', [$yearStart, $yearEnd])
             ->whereBetween('end_date', [$yearStart, $yearEnd])
-            ->where('leave_type', 'Half Day')
-            ->where('management_approval', 'Approved')
-            ->where('supervisor_approval', 'Approved')
-            ->sum(DB::raw('DATEDIFF(end_date, start_date) + 1'));
+            ->where('leave_type', 'Half Day');
+
+        // Apply the approval conditions for half-day leave based on the user type
+        if ($userType === 'supervisor_in_chief') {
+            $totalHalfDaysTaken->where('management_approval', 'Approved');
+        } else {
+            $totalHalfDaysTaken->where('supervisor_approval', 'Approved')
+                            ->where('supervisor_in_chief_approval', 'Approved');
+        }
+
+        $totalHalfDaysTaken = $totalHalfDaysTaken->sum(DB::raw('DATEDIFF(end_date, start_date) + 1'));
 
         // Each half day is considered as 0.5 days of casual leave
         $halfDayDeductions = $totalHalfDaysTaken * 0.5;
@@ -614,10 +757,17 @@ class LeaveController extends Controller
         $shortLeavesTaken = Leave::where('user_id', $userId)
             ->whereBetween('start_date', [$monthStart, $monthEnd])
             ->whereBetween('end_date', [$monthStart, $monthEnd])
-            ->where('leave_type', 'Short Leave')
-            ->where('management_approval', 'Approved')
-            ->where('supervisor_approval', 'Approved')
-            ->count();
+            ->where('leave_type', 'Short Leave');
+
+        // Apply the approval conditions for short leave based on the user type
+        if ($userType === 'supervisor_in_chief') {
+            $shortLeavesTaken->where('management_approval', 'Approved');
+        } else {
+            $shortLeavesTaken->where('supervisor_approval', 'Approved')
+                            ->where('supervisor_in_chief_approval', 'Approved');
+        }
+        
+        $shortLeavesTaken = $shortLeavesTaken->count();
 
         foreach ($leavesTaken as $leave) {
             $type = $leave->leave_type;
@@ -850,6 +1000,12 @@ class LeaveController extends Controller
         return view('supervisor.sup-leave', ['viewSupUsers' => $viewSupUsers, 'users' => $users]);
     }
 
+    public function getSicuser() {
+        $users = $this->fetchUsers()->where('department', auth()->user()->department);
+        $viewSicUsers = View::make('components.sic-request-leave', ['users' => $users])->render(); // Render
+        return view('supervisor-in-chief.sic-leave', ['viewSicUsers' => $viewSicUsers, 'users' => $users]);
+    }
+
     public function getMgtUser() {
         $users = $this->fetchUsers()->where('department', auth()->user()->department);
         $viewMgtUsers = View::make('components.mgt-request-leave', ['users' => $users])->render(); // Render
@@ -912,6 +1068,7 @@ class LeaveController extends Controller
         $leave->additional_notes = $request->additional_notes;
         $leave->covering_person = $request->covering_person;
         $leave->supervisor_approval = "Approved";
+        $leave->supervisor_in_chief_approval = "Pending";
         $leave->management_approval = "Pending";
     
         // Save the leave request
@@ -919,34 +1076,46 @@ class LeaveController extends Controller
     
         // Get the leave_id of the newly created leave request
         $leave_id = $leave->id;
+        //dd($leave_id);
     
         // Notify all management users
-        $management_users = User::where('usertype', 'management')->get();
+        $supervisor_in_chief_users = User::where('usertype', 'supervisor-in-chief')
+        ->where('main_department', auth()->user()->main_department)
+        ->get();
         $user = User::find($leave->user_id);
+        //dd($user->id);
+        
+
     
-        foreach ($management_users as $manager) {
-            $management_message = "New leave request from $user->name requires your approval.";
+        foreach ($supervisor_in_chief_users as $supervisor_in_chief) {
+            $supervisor_in_chief_message = "New leave request from $user->name requires your approval.";
             Notification::create([
-                'user_id' => $manager->id,
-                'message' => $management_message,
-                'leave_id' => $leave_id, // Use the correct leave_id here
-                'emp_id' => $leave->user_id, // Use the correct user_id here
+                'user_id' => $supervisor_in_chief->id,
+                'message' => $supervisor_in_chief_message,
+                'leave_id' => $leave_id,
+                'emp_id' => $user->id,
             ]);
     
             $data = [
-                'user_id' => $manager->id,
-                'message' => $management_message,
-                'leave_id' => $leave_id, // Use the correct leave_id here
-                'emp_id' => $leave->user_id, // Use the correct user_id here
+                'user_id' => $supervisor_in_chief->id,
+                'message' => $supervisor_in_chief_message,
+                'leave_id' => $leave_id,
+                'emp_id' => $user->id,
             ];
             
-            // Optionally, you can send an email to the manager (if needed)
-            Mail::to($manager->email)->send(new LeaveRequestMail($leave));
+        //dd($leave);
+        // Send email to supervisor_in_chief
+        try {
+            Mail::to($supervisor_in_chief->email)->send(new LeaveRequestMail($leave));
+            } catch (\Exception $e) {
+            Log::error('Failed to send email to Chief Supervisor: ' . $e->getMessage());
+            }
+            //Mail::to($supervisor->email)->send(new LeaveRequestMail($leave));
         }
     
         return back()->with('msg', 'Your leave request has been successfully processed.');
     }
-    
+
 
     public function viewSupLeaves(Request $request) {
         // $leaves = Leave::where('user_id', auth()->user()->id)->get();  Fetch leaves for the authenticated user
@@ -980,6 +1149,148 @@ class LeaveController extends Controller
     
         // Pass 'data' and 'users' directly to 'supervisor.edit-my-leave' without rendering to string
         return view('supervisor.edit-my-leave', compact('data', 'users'));
+    }
+
+    public function storeSicLeave(Request $request)
+    {
+        $request->validate([
+            'leave_type' => 'required',
+            'other_leave_type' => 'nullable|required_if:leave_type,Other', // Add validation for other_leave_type
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
+            'reason' => 'required',
+            //'covering_person' => 'required',
+            // Validate the selected time slots based on leave type
+            'short_leave_time' => 'nullable|required_if:leave_type,Short Leave',
+            'half_day_time' => 'nullable|required_if:leave_type,Half Day',
+            'duty_leave_time' => 'nullable|required_if:leave_type,Duty Leave',
+        ]);
+    
+        $leave = new Leave;
+    
+        $leave->user_id = auth()->user()->id;
+    
+        // Determine the correct leave type to store
+        $leave->leave_type = $request->leave_type === 'Other' ? $request->other_leave_type : $request->leave_type;
+    
+        // Set start and end date
+        $leave->start_date = $request->start_date;
+        $leave->end_date = $request->end_date;
+    
+        // Handle time slots based on leave type
+        if ($request->leave_type === 'Short Leave') {
+            $timeRange = explode(' - ', $request->short_leave_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Half Day') {
+            $timeRange = explode(' - ', $request->half_day_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } elseif ($request->leave_type === 'Duty Leave') {
+            $timeRange = explode(' - ', $request->duty_leave_time); // Split the time range
+            $leave->start_time = date('H:i:s', strtotime($timeRange[0]));
+            $leave->end_time = date('H:i:s', strtotime($timeRange[1]));
+        } else {
+            // For other leave types, set times to null
+            $leave->start_time = null;
+            $leave->end_time = null;
+        }
+    
+        // Set other fields
+        $leave->reason = $request->reason;
+        $leave->additional_notes = $request->additional_notes;
+        $leave->covering_person = $request->covering_person;
+        $leave->supervisor_approval = "Approved";
+        $leave->supervisor_in_chief_approval = "Approved";
+        $leave->management_approval = "Pending";
+    
+        // Save the leave request
+        $leave->save();
+    
+        // Get the leave_id of the newly created leave request
+        $leave_id = $leave->id;
+    
+        // Notify all management users
+        $management_users = User::where('usertype', 'management')->where('main_department', 'MGT')->get();
+        $user = User::find($leave->user_id);
+    
+        foreach ($management_users as $manager) {
+            $management_message = "New leave request from $user->name requires your approval.";
+            Notification::create([
+                'user_id' => $manager->id,
+                'message' => $management_message,
+                'leave_id' => $leave_id, // Use the correct leave_id here
+                'emp_id' => $leave->user_id, // Use the correct user_id here
+            ]);
+    
+            $data = [
+                'user_id' => $manager->id,
+                'message' => $management_message,
+                'leave_id' => $leave_id, // Use the correct leave_id here
+                'emp_id' => $leave->user_id, // Use the correct user_id here
+            ];
+            
+            // Optionally, you can send an email to the manager (if needed)
+            Mail::to($manager->email)->send(new LeaveRequestMail($leave));
+        }
+    
+        return back()->with('msg', 'Your leave request has been successfully processed.');
+    }
+
+    public function viewSicLeaves(Request $request) {
+        // $leaves = Leave::where('user_id', auth()->user()->id)->get();  Fetch leaves for the authenticated user
+
+        $leaves = Leave::join('users', 'users.id', '=', 'leaves.user_id')
+                    ->join('users as covering_users', 'covering_users.id', '=', 'leaves.covering_person')
+                    ->select(
+                        'users.id',
+                        'covering_users.name',
+                        'leaves.id',
+                        'leaves.user_id',
+                        'leaves.leave_type',
+                        'leaves.start_date',
+                        'leaves.end_date',
+                        'leaves.reason',
+                        'leaves.additional_notes',
+                        'leaves.additional_notes'
+                    )
+                    ->where('leaves.user_id', auth()->user()->id)
+                    ->where('leaves.management_approval', "Pending")
+                    ->get();
+
+
+        $manageLeaveView = View::make('components.manage-leave', ['leave' => $leaves])->render(); // Render the manage-leave view
+        return view('supervisor-in-chief.manage-my-leave', ['manageLeaveView' => $manageLeaveView]);
+    }
+
+    public function viewMySicLeaves(Request $request) {
+
+        $leaves = Leave::join('users', 'users.id', '=', 'leaves.user_id')
+                            ->select(
+                                'users.name',
+                                'leaves.id',
+                                'leaves.user_id',
+                                'leaves.leave_type',
+                                'leaves.start_date',
+                                'leaves.end_date',
+                                'leaves.reason',
+                                'leaves.additional_notes',
+                                'leaves.management_approval',
+                                'leaves.management_note',
+                            )
+                            ->where('leaves.user_id', auth()->user()->id)
+                            ->orderBy('leaves.start_date', 'desc')
+                            ->get();
+
+
+        $manageLeaveView = View::make('components.view-emp-sup-leaves', ['leave' => $leaves])->render(); // Render the manage-leave view
+        return view('supervisor.my-leaves', ['manageLeaveView' => $manageLeaveView]);
+    }
+
+    public function editSicLeave($id) {
+        $data = DB::table('leaves')->where('id', $id)->first();
+        $users = $this->fetchUsers();  // Fetch users using the refactored method
+        return view('supervisor-in-chief.edit-my-leave', compact('data', 'users'));
     }
 
 

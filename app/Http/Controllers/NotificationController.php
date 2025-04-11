@@ -51,7 +51,105 @@ class NotificationController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Leave request not found.']);
         }
     
+        // Approve the leave request
         $leave->supervisor_approval = "Approved";
+        $leave->save();
+        Log::info("Leave request approved, ID: {$leave->id}");
+
+        $notification->read = 1;
+        $notification->save();
+        Log::info("Notification marked as read, ID: $id");
+    
+        // Find the department of the user making the leave request
+        $userDept = User::where('id', $leave->user_id)->pluck('main_department')->first();
+    
+        // Find Supervisor-in-Chief in the same department
+        $supervisor_in_chief_users = User::where('usertype', 'supervisor-in-chief')
+                                        ->where('main_department', $userDept)
+                                        ->get();
+    
+        // Notify the Supervisor-in-Chief
+        foreach ($supervisor_in_chief_users as $supervisor_in_chief) {
+            $supervisor_in_chief_message = "Leave request from {$leave->user->name} has been approved by supervisor and requires your review.";
+            Notification::create([
+                'user_id' => $supervisor_in_chief->id,
+                'message' => $supervisor_in_chief_message,
+                'leave_id' => $leave->id,
+                'emp_id' => $leave->user_id,
+            ]);
+    
+            Log::info("Notification sent to Supervisor-in-Chief, User ID: {$supervisor_in_chief->id}");
+        }
+    
+        return response()->json(['status' => 'success', 'message' => 'Leave request approved and notifications sent to Supervisor-in-Chief.']);
+    }
+    
+    
+    public function reject($id, Request $request)
+    {
+        // Find the notification by ID
+        $notification = Notification::find($id);
+        if (!$notification) {
+            Log::error("Notification not found, ID: $id");
+            return response()->json(['status' => 'error', 'message' => 'Notification not found.']);
+        }
+    
+        // Find the leave request associated with the notification
+        $leave = Leave::find($notification->leave_id);
+        if (!$leave) {
+            Log::error("Leave request not found, ID: {$notification->leave_id}");
+            return response()->json(['status' => 'error', 'message' => 'Leave request not found.']);
+        }
+    
+        // Mark the leave request as rejected
+        $leave->supervisor_approval = "Rejected";
+        $leave->save();
+        Log::info("Leave request rejected, ID: {$leave->id}");
+    
+        // Find the user who made the leave request
+        $user = $leave->user;
+        if (!$user) {
+            Log::error("User not found for leave request, Leave ID: {$leave->id}");
+            return response()->json(['status' => 'error', 'message' => 'User not found for leave request.']);
+        }
+    
+        // Mark the notification as read
+        $notification->read = 1;
+        $notification->save();
+        Log::info("Notification marked as read, ID: $id");
+    
+        // Notify the user that their leave request has been rejected
+        $message = "Your leave request has been rejected by the Supervisor.";
+        Notification::create([
+            'user_id' => $user->id,
+            'message' => $message,
+            'leave_id' => $leave->id,
+            'emp_id' => $user->id,
+        ]);
+        Log::info("Notification sent to user, User ID: {$user->id}");
+    
+        // Return a success response
+        return response()->json(['status' => 'success', 'message' => 'Leave request rejected.']);
+    }
+    
+
+    public function approveSIC($id, Request $request)
+    {
+        Log::info("Approving leave request, Notification ID: $id");
+    
+        $notification = Notification::find($id);
+        if (!$notification) {
+            Log::error("Notification not found, ID: $id");
+            return response()->json(['status' => 'error', 'message' => 'Notification not found.']);
+        }
+    
+        $leave = Leave::find($notification->leave_id);
+        if (!$leave) {
+            Log::error("Leave request not found, ID: {$notification->leave_id}");
+            return response()->json(['status' => 'error', 'message' => 'Leave request not found.']);
+        }
+    
+        $leave->supervisor_in_chief_approval = "Approved";
         $leave->save();
         Log::info("Leave request approved, ID: {$leave->id}");
     
@@ -68,49 +166,68 @@ class NotificationController extends Controller
         }
     
         // Notify management
-        $managementUsers = User::where('usertype', 'management')->get();
-        if ($managementUsers->isEmpty()) {
-            Log::warning("No management users found");
-        }
+        // $managementUsers = User::where('usertype', 'management')->get();
+        // if ($managementUsers->isEmpty()) {
+        //     Log::warning("No management users found");
+        // }
+        
+        // Notify employee
+        $message = "Your leave request has been approved by Supervisor in Chief.";
+        Notification::create([
+            'user_id' => $user->id,
+            'message' => $message,
+            'leave_id' => $leave->id,
+            'emp_id' => $user->id,
+        ]);
+        Log::info("Notification sent to Supervisor in Chief, User ID: {$user->id}");
+
+
     
-        foreach ($managementUsers as $management) {
-            $message = "Leave request from {$user->name} has been approved by the supervisor and requires your approval.";
-            Notification::create([
-                'user_id' => $management->id,
-                'message' => $message,
-                'leave_id' => $leave->id,
-                'emp_id' => $user->id,
-            ]);
-            Log::info("Notification sent to management, Management ID: {$management->id}");
-        }
-    
-        return response()->json(['status' => 'success', 'message' => 'Leave request approved and notifications sent to management.']);
+        return response()->json(['status' => 'success', 'message' => 'Leave request approved.']);
     }
-    
-    public function reject($id, Request $request)
+
+    public function RejectSIC($id, Request $request)
     {
+        Log::info("Supervisor in Chief rejecting leave request, Notification ID: $id");
+
         $notification = Notification::find($id);
         if (!$notification) {
             Log::error("Notification not found, ID: $id");
             return response()->json(['status' => 'error', 'message' => 'Notification not found.']);
         }
-    
+
         $leave = Leave::find($notification->leave_id);
         if (!$leave) {
             Log::error("Leave request not found, ID: {$notification->leave_id}");
             return response()->json(['status' => 'error', 'message' => 'Leave request not found.']);
         }
-    
-        $leave->supervisor_approval = "Rejected";
+
+        $leave->supervisor_in_chief_approval = "Rejected";
         $leave->save();
-        Log::info("Leave request rejected, ID: {$leave->id}");
-    
+        Log::info("Leave request rejected by Supervisor in Chief, ID: {$leave->id}");
+
         // Mark the notification as read
         $notification->read = 1;
         $notification->save();
         Log::info("Notification marked as read, ID: $id");
-    
-        return response()->json(['status' => 'success', 'message' => 'Leave request rejected.']);
+
+        $user = $leave->user;
+        if (!$user) {
+            Log::error("User not found for leave request, Leave ID: {$leave->id}");
+            return response()->json(['status' => 'error', 'message' => 'User not found for leave request.']);
+        }
+
+        // Notify employee
+        $message = "Your leave request has been rejected by management.";
+        Notification::create([
+            'user_id' => $user->id,
+            'message' => $message,
+            'leave_id' => $leave->id,
+            'emp_id' => $user->id,
+        ]);
+        Log::info("Notification sent to employee, User ID: {$user->id}");
+
+        return response()->json(['status' => 'success', 'message' => 'Leave request rejected by management.']);
     }
 
 

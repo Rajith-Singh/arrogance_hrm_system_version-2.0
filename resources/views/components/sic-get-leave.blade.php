@@ -68,7 +68,7 @@
                                 <td class="py-3 px-6 text-left">{{ $data->supervisor_approval }}</td>
                                 <td class="py-3 px-6 text-left">{{ $data->supervisor_in_chief_approval }}</td>
                                 <td class="py-3 px-6 text-center">
-                                    <a href="/view-emp-leave/{{ $data->user_id }}/{{ $data->id }}" class="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-md px-3 py-1">View</a>
+                                    <a href="/view-emp-leave-sic/{{ $data->user_id }}/{{ $data->id }}" class="text-white bg-blue-500 hover:bg-blue-600 font-medium rounded-md px-3 py-1">View</a>
                                 </td>
                             </tr>
                             @endforeach

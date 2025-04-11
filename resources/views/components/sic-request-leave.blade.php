@@ -138,7 +138,7 @@
                             <div class="p-6">
                                 <x-validation-errors class="mb-4" />
 
-                                <form method="POST" action="/saveSupLeave">
+                                <form method="POST" action="/saveSicLeave">
                                     @csrf
 
                                     @if(session('msg'))

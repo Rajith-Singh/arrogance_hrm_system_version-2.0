@@ -374,6 +374,23 @@ class AttendanceController extends Controller
     }
 
 
+    public function submitReasonSic(Request $request)
+    {
+        $request->validate([
+            'record_id' => 'required|integer|exists:attendances,id',
+            'reason' => 'required|string|max:255',
+        ]);
+    
+        // Find the attendance record by ID
+        $attendance = Attendance::findOrFail($request->record_id);
+    
+        // Update the attendance record with the provided reason
+        $attendance->reason = $request->reason;
+        $attendance->save();
+    
+        return response()->json(['success' => true]);
+    }
+
     public function submitReasonHR(Request $request)
     {
         $request->validate([
@@ -661,6 +678,26 @@ class AttendanceController extends Controller
 
 
     public function checkAttendanceSup(Request $request)
+    {
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        $query = Attendance::where('employee_id', auth()->user()->emp_no);
+
+        if ($startDate) {
+            $query->where('date', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->where('date', '<=', $endDate);
+        }
+
+        $attendanceRecords = $query->get();
+
+        return response()->json($attendanceRecords);
+    }
+
+    public function checkAttendanceSic(Request $request)
     {
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');

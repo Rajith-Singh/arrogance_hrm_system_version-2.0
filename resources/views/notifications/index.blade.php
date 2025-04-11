@@ -54,6 +54,22 @@
                                                                     Reject
                                                                 </button>
                                                             </form>
+                                                        @elseif(auth()->user()->usertype === 'supervisor-in-chief')
+                                                            <a href="{{ url('/view-emp-leave-sic/' . $notification->emp_id . '/' . $notification->leave_id) }}" class="bg-gray-500 hover:bg-gray-700 text-white text-xs font-bold py-1 px-2 rounded">
+                                                                View
+                                                            </a>
+                                                            <form method="POST" action="{{ route('notifications.supervisor-in-chief.approve', $notification->id) }}">
+                                                                @csrf
+                                                                <button type="submit" class="bg-green-500 hover:bg-green-700 text-white text-xs font-bold py-1 px-2 rounded approve-btn" data-id="{{ $notification->id }}">
+                                                                    Approve
+                                                                </button>
+                                                            </form>
+                                                            <form method="POST" action="{{ route('notifications.supervisor-in-chief.reject', $notification->id) }}">
+                                                                @csrf
+                                                                <button type="submit" class="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-1 px-2 rounded reject-btn" data-id="{{ $notification->id }}">
+                                                                    Reject
+                                                                </button>
+                                                            </form>
                                                         @elseif(auth()->user()->usertype === 'management')
                                                             <a href="{{ url('/view-mgt-leave/' . $notification->emp_id . '/' . $notification->leave_id) }}" class="bg-gray-500 hover:bg-gray-700 text-white text-xs font-bold py-1 px-2 rounded">
                                                                 View

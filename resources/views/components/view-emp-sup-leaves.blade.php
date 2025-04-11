@@ -30,12 +30,12 @@
                 </div>
 
                 <div class="flex items-center mb-2">
-                    <span class="text-gray-600 mr-2">Management Approval:</span>
-                    <span class="@if($data->management_approval === 'Approved') text-green-600 @elseif($data->management_approval === 'Rejected') text-red-600 @else text-gray-600 @endif">{{$data->management_approval}}</span>
+                    <span class="text-gray-600 mr-2">Supervisor in Chief Approval:</span>
+                    <span class="@if($data->supervisor_in_chief_approval === 'Approved') text-green-600 @elseif($data->supervisor_in_chief_approval === 'Rejected') text-red-600 @else text-gray-600 @endif">{{$data->management_approval}}</span>
                 </div>
                 <div class="flex items-center mb-2">
-                    <span class="text-gray-600 mr-2">Management Comment:</span>
-                    <span class="text-gray-800">{{$data->management_note}}</span>
+                    <span class="text-gray-600 mr-2">Supervisor in Chief Comment:</span>
+                    <span class="text-gray-800">{{$data->supervisor_in_chief_note}}</span>
                 </div>
             </div>
             @endforeach

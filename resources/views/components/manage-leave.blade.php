@@ -47,6 +47,8 @@
                                         <a href="/editLeave/{{$data->id}}" class="btn btn-warning btn-sm">Edit</a>
                                     @elseif(auth()->user()->usertype == 'supervisor')
                                         <a href="/editSupLeave/{{$data->id}}" class="btn btn-warning btn-sm">Edit</a>
+                                    @elseif(auth()->user()->usertype == 'supervisor-in-chief')
+                                        <a href="/editSicLeave/{{$data->id}}" class="btn btn-warning btn-sm">Edit</a>
                                     @elseif(auth()->user()->usertype == 'management')
                                         <a href="/editMgtLeave/{{$data->id}}" class="btn btn-warning btn-sm">Edit</a>
                                     @elseif(auth()->user()->usertype == 'admin')

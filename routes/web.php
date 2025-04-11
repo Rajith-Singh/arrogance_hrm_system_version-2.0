@@ -125,6 +125,43 @@ Route::middleware(['auth', 'role:supervisor'])->group(function () {
     });
 });
 
+
+// Supervisor-in-chief-only routes with 'role:supervisor-in-chief' middleware
+Route::middleware(['auth', 'role:supervisor-in-chief'])->group(function () {
+    Route::get('/view-leaves-sic',[LeaveController::class,'viewEmpLeaveSic']);
+
+    Route::get('/view-emp-leave-sic/{user_id}/{leave_id}', [LeaveController::class, 'viewSicLeaveRequest']);
+
+    Route::post('/update-supervisor-approval-sic', [LeaveController::class, 'updateSICApproval']);
+
+    Route::get('/request-supervisor-ic-leave', [LeaveController::class, 'getSicuser']);
+
+    Route::post('/saveSicLeave',[LeaveController::class,'storeSicLeave']);
+
+    Route::get('/manage-supervisor-ic-leave',[LeaveController::class,'viewSicLeaves']);
+
+    Route::get('/editSicLeave/{id}', [LeaveController::class, 'editSicLeave']); ////
+
+    Route::get('/view-sic-leaves',[LeaveController::class,'viewMySicLeaves']);
+
+    Route::post('/notifications/supervisor-in-chief/approve/{id}', [NotificationController::class, 'approveSIC'])->name('notifications.supervisor-in-chief.approve');
+    Route::post('/notifications/supervisor-in-chief/reject/{id}', [NotificationController::class, 'RejectSIC'])->name('notifications.supervisor-in-chief.reject');
+
+    Route::get('/attendance-tracking-sic', [AttendanceController::class, 'checkAttendanceSic']);
+
+    Route::get('/track-attendance-Sic', function () {
+        return view('supervisor-in-chief.sic-view-attendance');
+    });
+    Route::post('/submit-reason-sic', [AttendanceController::class, 'submitReasonSic'])->name('submit-reason-sic');
+
+    
+    Route::post('/support/send', [SupportController::class, 'send'])->name('support.send');
+
+    Route::get('/supportSic', function () {
+        return view('supervisor.support-desk');
+    });
+});
+
 // Management-only routes with 'role:management' middleware
 Route::middleware(['auth', 'role:management'])->group(function () {
     Route::get('/view-leaves-mgt',[LeaveController::class,'viewEmpLeaveMgt']);
