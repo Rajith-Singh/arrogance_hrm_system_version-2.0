@@ -91,6 +91,8 @@ class HomeController extends Controller
             return $this->leaveController->getLeaveMgtDataForCalendar();
         } else if (Auth::user()->usertype === 'supervisor') {
             return $this->leaveController->getLeaveSupDataForCalendar();
+        } else if (Auth::user()->usertype === 'supervisor-in-chief') {
+            return $this->leaveController->getLeaveSicDataForCalendar();
         } elseif (Auth::user()->usertype === 'user') {
             // Fetch the logged-in user's leaves
             return $this->leaveController->getUserLeaveDataForCalendar(Auth::id()); // Pass the user's ID

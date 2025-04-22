@@ -1546,6 +1546,16 @@ class LeaveController extends Controller
         return Leave::with('user')->get();
     }
 
+    public function getLeaveSicDataForCalendar()
+    {
+        // Fetch all leave records where the associated user's main_department matches the current user's main_department
+        return Leave::with('user')
+                    ->whereHas('user', function($query) {
+                        $query->where('main_department', Auth::user()->main_department);
+                    })
+                    ->get();
+    }
+
     public function getLeaveSupDataForCalendar()
     {
         // Fetch all leave records where the associated user's department matches the current user's department

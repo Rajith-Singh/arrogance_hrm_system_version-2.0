@@ -57,7 +57,7 @@
 <body>
     <div class="email-container">
         <div class="email-header">
-            Leave Request for {{ $leave->user->name }} Requires Your Approval
+            Leave Request for {{ $leave->user->name ?? 'Employee' }} Requires Your Approval
         </div>
         <div class="email-body">
             <h2>Hello Supervisor,</h2>
@@ -68,8 +68,8 @@
                 <li><strong>Start Date:</strong> {{ \Carbon\Carbon::parse($leave->start_date)->format('F j, Y') }}</li>
                 <li><strong>End Date:</strong> {{ \Carbon\Carbon::parse($leave->end_date)->format('F j, Y') }}</li>
                 <li><strong>Reason:</strong> {{ $leave->reason }}</li>
-                <li><strong>Employee:</strong> {{ $leave->user->name }}</li>
-                <li><strong>Covering Person:</strong> {{ $leave->coveringPerson->name }}</li>
+                <li><strong>Employee:</strong> {{ $leave->user->name ?? 'Employee' }}</li>
+                <li><strong>Covering Person:</strong> {{ $leave->coveringPerson->name ?? 'Not Available' }}</li>
             </ul>
 
             <p>Please visit the Arrogance HRM System to review and approve the leave request.</p>

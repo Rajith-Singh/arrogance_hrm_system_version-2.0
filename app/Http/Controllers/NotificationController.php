@@ -8,6 +8,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\LeaveRequestMail;
+use App\Mail\ManagementApprovalMail;
+use App\Mail\SupervisorInChiefApprovalMail;
 
 class NotificationController extends Controller
 {
@@ -45,7 +49,8 @@ class NotificationController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Notification not found.']);
         }
     
-        $leave = Leave::find($notification->leave_id);
+        // Eager-load the 'user' relationship with the Leave model
+        $leave = Leave::with('user')->find($notification->leave_id);
         if (!$leave) {
             Log::error("Leave request not found, ID: {$notification->leave_id}");
             return response()->json(['status' => 'error', 'message' => 'Leave request not found.']);
@@ -55,7 +60,7 @@ class NotificationController extends Controller
         $leave->supervisor_approval = "Approved";
         $leave->save();
         Log::info("Leave request approved, ID: {$leave->id}");
-
+    
         $notification->read = 1;
         $notification->save();
         Log::info("Notification marked as read, ID: $id");
@@ -70,7 +75,11 @@ class NotificationController extends Controller
     
         // Notify the Supervisor-in-Chief
         foreach ($supervisor_in_chief_users as $supervisor_in_chief) {
-            $supervisor_in_chief_message = "Leave request from {$leave->user->name} has been approved by supervisor and requires your review.";
+    
+            // Use a safe fallback for the employee's name when building the notification message.
+            $employeeName = $leave->user ? $leave->user->name : 'Employee';
+            $supervisor_in_chief_message = "Leave request from {$employeeName} has been approved by supervisor and requires your review.";
+    
             Notification::create([
                 'user_id' => $supervisor_in_chief->id,
                 'message' => $supervisor_in_chief_message,
@@ -78,11 +87,25 @@ class NotificationController extends Controller
                 'emp_id' => $leave->user_id,
             ]);
     
+            // Define the supervisor name for the email (hardcoded as "Supervisor" in this case)
+            $supervisor_name = "Supervisor";
+    
+            try {
+                Mail::to($supervisor_in_chief->email)
+                    ->send(new SupervisorInChiefApprovalMail($leave, $supervisor_name));
+                Log::info("Email sent to Supervisor-in-Chief, User ID: {$supervisor_in_chief->id}");
+            } catch (\Exception $e) {
+                Log::error("Failed to send email to Supervisor-in-Chief, User ID: {$supervisor_in_chief->id}. Error: " . $e->getMessage());
+                // Optionally, you might want to continue or handle the error further.
+            }
+    
             Log::info("Notification sent to Supervisor-in-Chief, User ID: {$supervisor_in_chief->id}");
         }
     
         return response()->json(['status' => 'success', 'message' => 'Leave request approved and notifications sent to Supervisor-in-Chief.']);
     }
+    
+    
     
     
     public function reject($id, Request $request)
